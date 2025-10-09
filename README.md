@@ -156,6 +156,16 @@ Finds all nodes connected to a given node via an edge. This is the most efficien
 *   **`node_id`** (str): The unique ID of the node to start from.
 *   **`label`** (Optional[str]): An optional relationship label to filter by (e.g., 'part_of', 'mentions').
 
+#### `search_nodes`
+Searches for nodes based on a query string, type, and tags.
+
+*   **`query`** (Optional[str]): A string to search for in the relevant fields of the nodes.
+*   **`node_type`** (Optional[str]): The type of nodes to filter by (e.g., "Task", "Note").
+*   **`tags`** (Optional[List[str]]): A list of tags to filter by.
+
+#### `get_all_tags`
+Retrieves a sorted list of all unique tags from all nodes.
+
 ## 5. Example Workflow
 
 Here is a simple example of how to use the tools to manage a project.

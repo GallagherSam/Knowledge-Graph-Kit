@@ -178,3 +178,71 @@ def get_connected_nodes(node_id: str, label: Optional[str] = None) -> List[Dict[
             
     # Return the full node objects for the connected IDs
     return [node for node in nodes if node.get("id") in connected_node_ids]
+
+
+def search_nodes(
+    query: Optional[str] = None,
+    node_type: Optional[AnyNode] = None,
+    tags: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Searches for nodes based on a query string, type, and tags.
+
+    Args:
+        query: A string to search for in the relevant fields of the nodes.
+        node_type: The type of nodes to filter by.
+        tags: A list of tags to filter by.
+
+    Returns:
+        A list of nodes that match the search criteria.
+    """
+    nodes = state_manager.read_nodes()
+
+    # Filter by node type if provided.
+    if node_type:
+        nodes = [node for node in nodes if node.get("type") == node_type]
+
+    # Filter by tags if provided.
+    if tags:
+        nodes = [
+            node
+            for node in nodes
+            if any(tag in node.get("properties", {}).get("tags", []) for tag in tags)
+        ]
+
+    # Filter by query string if provided.
+    if query:
+        query = query.lower()
+        filtered_nodes = []
+        for node in nodes:
+            props = node.get("properties", {})
+            node_type = node.get("type")
+            
+            if node_type == "Task" and query in props.get("description", "").lower():
+                filtered_nodes.append(node)
+            elif node_type == "Note" and (
+                query in props.get("title", "").lower()
+                or query in props.get("content", "").lower()
+            ):
+                filtered_nodes.append(node)
+            elif node_type == "Person" and query in props.get("name", "").lower():
+                filtered_nodes.append(node)
+    return nodes
+
+
+def get_all_tags() -> List[str]:
+    """
+    Retrieves a sorted list of all unique tags from all nodes.
+
+    Returns:
+        A list of unique tag strings.
+    """
+    nodes = state_manager.read_nodes()
+    all_tags = set()
+
+    for node in nodes:
+        tags = node.get("properties", {}).get("tags", [])
+        if tags:
+            all_tags.update(tags)
+
+    return sorted(list(all_tags))

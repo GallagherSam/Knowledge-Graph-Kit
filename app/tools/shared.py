@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict, Any
 from app import crud
+from app.models import AnyNode
 
 def create_edge(source_id: str, label: str, target_id: str) -> dict:
     """
@@ -20,3 +21,20 @@ def get_related_nodes(node_id: str, label: Optional[str] = None) -> List[Dict[st
     Service function to find all nodes connected to a specific node.
     """
     return crud.get_connected_nodes(node_id=node_id, label=label)
+
+def search_nodes(
+    query: Optional[str] = None,
+    node_type: Optional[AnyNode] = None,
+    tags: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Service function to search for nodes.
+    """
+    return crud.search_nodes(query=query, node_type=node_type, tags=tags)
+
+
+def get_all_tags() -> List[str]:
+    """
+    Service function to retrieve all unique tags.
+    """
+    return crud.get_all_tags()

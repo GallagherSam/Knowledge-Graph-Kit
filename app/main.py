@@ -7,6 +7,8 @@ from app.tools import person as person_service
 from app.tools import project as project_service
 from app.tools import shared as shared_service
 from app.tools import task as task_service
+from app.models import AnyNode
+
 
 # This is the central FastMCP application instance.
 mcp = FastMCP(
@@ -293,6 +295,38 @@ def get_related_nodes(node_id: str, label: Optional[str] = None) -> List[Dict[st
         A list of connected node dictionaries.
     """
     return shared_service.get_related_nodes(node_id=node_id, label=label)
+
+
+@mcp.tool
+def search_nodes(
+    query: Optional[str] = None,
+    node_type: Optional[AnyNode] = None,
+    tags: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """
+
+    Searches for nodes based on a query string, type, and tags.
+
+    Args:
+        query: A string to search for in the relevant fields of the nodes.
+        node_type: The type of nodes to filter by (e.g., "Task", "Note").
+        tags: A list of tags to filter by.
+
+    Returns:
+        A list of nodes that match the search criteria.
+    """
+    return shared_service.search_nodes(query=query, node_type=node_type, tags=tags)
+
+
+@mcp.tool
+def get_all_tags() -> List[str]:
+    """
+    Retrieves a sorted list of all unique tags from all nodes.
+
+    Returns:
+        A list of unique tag strings.
+    """
+    return shared_service.get_all_tags()
 
 
 if __name__ == "__main__":
