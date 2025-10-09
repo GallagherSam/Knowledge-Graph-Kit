@@ -227,6 +227,10 @@ def search_nodes(
                 filtered_nodes.append(node)
             elif node_type == "Person" and query in props.get("name", "").lower():
                 filtered_nodes.append(node)
+            elif node_type == "Project" and (query in props.get("name", "").lower() or query in props.get("description")):
+                filtered_nodes.append(node)
+        return filtered_nodes
+
     return nodes
 
 
