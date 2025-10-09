@@ -1,0 +1,9 @@
+# How to reconnect to the running tmux session for this project
+
+## 1. List running tmux sessions (optional)
+# This will show you all the sessions that are currently active.
+tmux ls
+
+## 2. Attach to the session
+# Use the name you gave the session to reconnect to it.
+tmux attach -t notes-graph-mcp
