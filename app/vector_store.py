@@ -1,5 +1,6 @@
 import chromadb
 from chromadb.utils import embedding_functions
+from chromadb.config import Settings
 import logging
 from typing import List, Dict, Any, Optional
 
@@ -23,7 +24,7 @@ class VectorStore:
         the embedding function, and creating or getting the collection.
         """
         try:
-            self.client = chromadb.PersistentClient(path=CHROMA_DATA_PATH)
+            self.client = chromadb.PersistentClient(path=CHROMA_DATA_PATH, settings=Settings(anonymized_telemetry=False))
             self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
                 model_name=EMBEDDING_MODEL
             )
