@@ -172,3 +172,68 @@ def test_get_all_tags(mock_state_manager):
 
     tags = crud.get_all_tags()
     assert tags == ["personal", "review", "urgent", "work"]
+
+
+def test_delete_edge_by_nodes_success(mock_state_manager):
+    """Test successful deletion of an edge by source, target, and label."""
+    mock_edges = [
+        {"id": "e1", "source_id": "1", "target_id": "2", "label": "part_of"},
+        {"id": "e2", "source_id": "3", "target_id": "1", "label": "assigned_to"},
+    ]
+    mock_state_manager.read_edges.return_value = mock_edges
+    mock_state_manager.delete_edge.return_value = True
+
+    result = crud.delete_edge_by_nodes(source_id="1", target_id="2", label="part_of")
+
+    assert result is True
+    mock_state_manager.delete_edge.assert_called_once_with("e1")
+
+
+def test_delete_edge_by_nodes_not_found(mock_state_manager):
+    """Test that trying to delete a non-existent edge by nodes fails."""
+    mock_state_manager.read_edges.return_value = []
+    result = crud.delete_edge_by_nodes(source_id="1", target_id="2", label="part_of")
+    assert result is False
+    mock_state_manager.delete_edge.assert_not_called()
+
+
+def test_rename_tag_success(mock_state_manager):
+    """Test successfully renaming a tag on multiple nodes."""
+    created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    mock_nodes = [
+        {
+            "id": "1",
+            "type": "Note",
+            "properties": {"title": "Note 1", "content": "c1", "tags": ["old_tag", "other"], "created_at": created_at, "modified_at": created_at},
+        },
+        {
+            "id": "2",
+            "type": "Task",
+            "properties": {"description": "Task 1", "tags": ["old_tag"], "created_at": created_at, "modified_at": created_at},
+        },
+        {"id": "3", "type": "Project", "properties": {"name": "p1", "description": "d1", "tags": ["another_tag"], "created_at": created_at, "modified_at": created_at}},
+    ]
+    mock_state_manager.read_nodes.return_value = mock_nodes
+
+    # Mock the update call to return a value to confirm it was called
+    mock_state_manager.update_node_in_db.side_effect = lambda node_id, props: {
+        "id": node_id,
+        "properties": props,
+        "type": "Note" if node_id == "1" else "Task", # Simplified for test
+    }
+
+
+    updated_nodes = crud.rename_tag(old_tag="old_tag", new_tag="new_tag")
+
+    assert len(updated_nodes) == 2
+    assert mock_state_manager.update_node_in_db.call_count == 2
+
+    # Check the call for the first node
+    call_args_1 = mock_state_manager.update_node_in_db.call_args_list[0]
+    assert call_args_1.args[0] == "1"
+    assert sorted(call_args_1.args[1]["tags"]) == ["new_tag", "other"]
+
+    # Check the call for the second node
+    call_args_2 = mock_state_manager.update_node_in_db.call_args_list[1]
+    assert call_args_2.args[0] == "2"
+    assert call_args_2.args[1]["tags"] == ["new_tag"]

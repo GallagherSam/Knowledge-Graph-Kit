@@ -239,3 +239,71 @@ def get_all_tags() -> List[str]:
             all_tags.update(tags)
 
     return sorted(list(all_tags))
+
+
+def delete_edge_by_nodes(source_id: str, target_id: str, label: str) -> bool:
+    """
+    Deletes an edge based on its source, target, and label.
+
+    Args:
+        source_id: The ID of the source node.
+        target_id: The ID of the target node.
+        label: The label of the edge.
+
+    Returns:
+        True if the edge was found and deleted, False otherwise.
+    """
+    edges = state_manager.read_edges()
+    edge_to_delete = next(
+        (
+            edge
+            for edge in edges
+            if edge["source_id"] == source_id
+            and edge["target_id"] == target_id
+            and edge["label"] == label
+        ),
+        None,
+    )
+
+    if edge_to_delete:
+        return state_manager.delete_edge(edge_to_delete["id"])
+    return False
+
+
+def rename_tag(old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
+    """
+    Renames a tag on all nodes that have it.
+
+    Args:
+        old_tag: The tag to be renamed.
+        new_tag: The new tag name.
+
+    Returns:
+        A list of nodes that were updated.
+    """
+    nodes = state_manager.read_nodes()
+    updated_nodes = []
+
+    for node in nodes:
+        properties = node.get("properties", {})
+        tags = properties.get("tags", [])
+
+        if old_tag in tags:
+            # Create a new list of tags with the old tag replaced
+            new_tags = [new_tag if tag == old_tag else tag for tag in tags]
+            # Remove duplicates if new_tag was already present
+            new_tags = sorted(list(set(new_tags)))
+
+            # Update the node's properties
+            updated_properties = properties.copy()
+            updated_properties["tags"] = new_tags
+
+            # Validate and save the updated node
+            PropertiesModel = PROPERTIES_MODELS[node["type"]]
+            validated_properties = PropertiesModel(**updated_properties).model_dump(mode="json")
+
+            updated_node = state_manager.update_node_in_db(node["id"], validated_properties)
+            if updated_node:
+                updated_nodes.append(updated_node)
+
+    return updated_nodes

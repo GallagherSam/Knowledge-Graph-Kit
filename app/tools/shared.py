@@ -38,3 +38,26 @@ def get_all_tags() -> List[str]:
     Service function to retrieve all unique tags.
     """
     return crud.get_all_tags()
+
+
+def delete_node(node_id: str) -> bool:
+    """
+    Service function to delete a node by its ID.
+    """
+    return crud.delete_node(node_id=node_id)
+
+
+def delete_edge(source_id: str, target_id: str, label: str) -> bool:
+    """
+    Service function to delete an edge by its source, target, and label.
+    """
+    return crud.delete_edge_by_nodes(
+        source_id=source_id, target_id=target_id, label=label
+    )
+
+
+def rename_tag(old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
+    """
+    Service function to rename a tag across all nodes.
+    """
+    return crud.rename_tag(old_tag=old_tag, new_tag=new_tag)
