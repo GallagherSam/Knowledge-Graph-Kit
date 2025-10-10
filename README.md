@@ -157,11 +157,17 @@ Finds all nodes connected to a given node via an edge. This is the most efficien
 *   **`label`** (Optional[str]): An optional relationship label to filter by (e.g., 'part_of', 'mentions').
 
 #### `search_nodes`
-Searches for nodes based on a query string, type, and tags.
+Searches for nodes based on a query string, type, and tags. This is a literal, keyword-based search.
 
 *   **`query`** (Optional[str]): A string to search for in the relevant fields of the nodes.
 *   **`node_type`** (Optional[str]): The type of nodes to filter by (e.g., "Task", "Note").
 *   **`tags`** (Optional[List[str]]): A list of tags to filter by.
+
+#### `semantic_search`
+Performs a semantic (meaning-based) search for nodes using a vector embedding model. This is useful for finding conceptually related nodes even if they don't share keywords.
+
+*   **`query`** (str): The query string to search for.
+*   **`node_type`** (Optional[str]): The type of nodes to filter by (e.g., "Task", "Note").
 
 #### `get_all_tags`
 Retrieves a sorted list of all unique tags from all nodes.

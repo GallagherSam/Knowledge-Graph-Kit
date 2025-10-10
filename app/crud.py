@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Optional, Type
 
 from app.state import state_manager
+from app.vector_store import vector_store_manager
 from app.models import (
     Node,
     Edge,
@@ -34,7 +35,9 @@ def create_node(node_type: AnyNode, properties: Dict[str, Any]) -> Dict[str, Any
     validated_properties = PropertiesModel(**properties).model_dump(mode="json")
     new_node = Node(type=node_type, properties=validated_properties)
     node_data = new_node.model_dump(mode="json")
-    return state_manager.add_node(node_data)
+    created_node = state_manager.add_node(node_data)
+    vector_store_manager.add_node(created_node)
+    return created_node
 
 def get_nodes(node_type: Optional[AnyNode] = None, **kwargs) -> List[Dict[str, Any]]:
     """
@@ -61,6 +64,19 @@ def get_nodes(node_type: Optional[AnyNode] = None, **kwargs) -> List[Dict[str, A
         nodes = filtered_nodes
         
     return nodes
+
+def get_nodes_by_ids(node_ids: List[str]) -> List[Dict[str, Any]]:
+    """
+    Retrieves nodes from the state by their IDs.
+
+    Args:
+        node_ids: A list of node IDs to retrieve.
+
+    Returns:
+        A list of nodes that match the given IDs.
+    """
+    nodes = state_manager.read_nodes()
+    return [node for node in nodes if node["id"] in node_ids]
 
 def update_node(node_id: str, properties: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -93,6 +109,7 @@ def update_node(node_id: str, properties: Dict[str, Any]) -> Dict[str, Any]:
     if updated_node is None:
         raise ValueError(f"Node with id '{node_id}' could not be updated.")
 
+    vector_store_manager.update_node(updated_node)
     return updated_node
 
 def delete_node(node_id: str) -> bool:
@@ -105,7 +122,10 @@ def delete_node(node_id: str) -> bool:
     Returns:
         True if the node was deleted, False otherwise.
     """
-    return state_manager.delete_node(node_id)
+    was_deleted = state_manager.delete_node(node_id)
+    if was_deleted:
+        vector_store_manager.delete_node(node_id)
+    return was_deleted
 
 def create_edge(source_id: str, label: str, target_id: str) -> Dict[str, Any]:
     """

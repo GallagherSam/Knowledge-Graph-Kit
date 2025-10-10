@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict, Any
 from app import crud
 from app.models import AnyNode
+from app.vector_store import vector_store_manager
 
 def create_edge(source_id: str, label: str, target_id: str) -> dict:
     """
@@ -61,3 +62,19 @@ def rename_tag(old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
     Service function to rename a tag across all nodes.
     """
     return crud.rename_tag(old_tag=old_tag, new_tag=new_tag)
+
+
+def semantic_search(
+    query: str,
+    node_type: Optional[AnyNode] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Service function to perform a semantic search for nodes.
+    """
+    node_ids = vector_store_manager.semantic_search(query=query, node_type=node_type)
+
+    if not node_ids:
+        return []
+
+    # Retrieve the full node data for the given IDs
+    return crud.get_nodes_by_ids(node_ids)
