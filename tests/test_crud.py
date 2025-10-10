@@ -215,11 +215,14 @@ def test_rename_tag_success(mock_state_manager):
     ]
     mock_state_manager.read_nodes.return_value = mock_nodes
 
+    # Create a dictionary to map node IDs to their types for the mock
+    node_type_map = {node["id"]: node["type"] for node in mock_nodes}
+
     # Mock the update call to return a value to confirm it was called
     mock_state_manager.update_node_in_db.side_effect = lambda node_id, props: {
         "id": node_id,
         "properties": props,
-        "type": "Note" if node_id == "1" else "Task", # Simplified for test
+        "type": node_type_map.get(node_id),
     }
 
 
