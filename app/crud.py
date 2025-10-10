@@ -99,7 +99,7 @@ def update_node(node_id: str, properties: Dict[str, Any]) -> Dict[str, Any]:
             break
             
     if not node_to_update:
-        raise Exception(status_code=404, detail=f"Node with id '{node_id}' not found.")
+        raise ValueError(f"Node with id '{node_id}' not found.")
 
     # Update the existing properties with the new ones.
     updated_properties = node_to_update["properties"]
@@ -137,9 +137,9 @@ def create_edge(source_id: str, label: str, target_id: str) -> Dict[str, Any]:
     node_ids = {node["id"] for node in nodes}
     
     if source_id not in node_ids:
-        raise Exception(status_code=404, detail=f"Source node with id '{source_id}' not found.")
+        raise ValueError(f"Source node with id '{source_id}' not found.")
     if target_id not in node_ids:
-        raise Exception(status_code=404, detail=f"Target node with id '{target_id}' not found.")
+        raise ValueError(f"Target node with id '{target_id}' not found.")
 
     new_edge = Edge(source_id=source_id, label=label, target_id=target_id)
     
