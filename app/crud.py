@@ -12,7 +12,6 @@ from app.models import (
 )
 
 # A mapping from the string representation of a node type to its Pydantic model class.
-# This allows for dynamic validation based on the 'type' field.
 PROPERTIES_MODELS: Dict[AnyNode, Type[TaskProperties | NoteProperties | PersonProperties | ProjectProperties]] = {
     "Task": TaskProperties,
     "Note": NoteProperties,
@@ -22,28 +21,20 @@ PROPERTIES_MODELS: Dict[AnyNode, Type[TaskProperties | NoteProperties | PersonPr
 
 def create_node(node_type: AnyNode, properties: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Creates a new node, validates its properties, and saves it to the state.
+    Creates a new node, validates its properties, and saves it to the database.
 
     Args:
-        node_type: The type of the node to create (e.g., "Task", "Note").
+        node_type: The type of the node to create.
         properties: A dictionary of properties for the node.
 
     Returns:
         The created node as a dictionary.
     """
-    # Validate the provided properties against the corresponding Pydantic model.
     PropertiesModel = PROPERTIES_MODELS[node_type]
     validated_properties = PropertiesModel(**properties).model_dump(mode="json")
-
-    # Create the main Node object.
     new_node = Node(type=node_type, properties=validated_properties)
-    
-    # Read the current nodes, add the new one, and write back to the state.
-    nodes = state_manager.read_nodes()
-    nodes.append(new_node.model_dump(mode="json"))
-    state_manager.write_nodes(nodes)
-    
-    return new_node.model_dump(mode="json")
+    node_data = new_node.model_dump(mode="json")
+    return state_manager.add_node(node_data)
 
 def get_nodes(node_type: Optional[AnyNode] = None, **kwargs) -> List[Dict[str, Any]]:
     """
@@ -58,11 +49,9 @@ def get_nodes(node_type: Optional[AnyNode] = None, **kwargs) -> List[Dict[str, A
     """
     nodes = state_manager.read_nodes()
     
-    # Filter by node type if provided.
     if node_type:
         nodes = [node for node in nodes if node.get("type") == node_type]
         
-    # Filter by any other property kwargs.
     if kwargs:
         filtered_nodes = []
         for node in nodes:
@@ -85,42 +74,42 @@ def update_node(node_id: str, properties: Dict[str, Any]) -> Dict[str, Any]:
         The updated node as a dictionary.
         
     Raises:
-        HTTPException: If the node with the given ID is not found.
+        ValueError: If the node with the given ID is not found.
     """
     nodes = state_manager.read_nodes()
-    node_to_update = None
-    node_index = -1
+    node_to_update = next((n for n in nodes if n["id"] == node_id), None)
 
-    # Find the node and its index.
-    for i, node in enumerate(nodes):
-        if node.get("id") == node_id:
-            node_to_update = node
-            node_index = i
-            break
-            
     if not node_to_update:
         raise ValueError(f"Node with id '{node_id}' not found.")
 
-    # Update the existing properties with the new ones.
     updated_properties = node_to_update["properties"]
     updated_properties.update(properties)
     
-    # Re-validate the updated properties.
     node_type = node_to_update["type"]
     PropertiesModel = PROPERTIES_MODELS[node_type]
     validated_properties = PropertiesModel(**updated_properties).model_dump(mode="json")
     
-    node_to_update["properties"] = validated_properties
+    updated_node = state_manager.update_node_in_db(node_id, validated_properties)
+    if updated_node is None:
+        raise ValueError(f"Node with id '{node_id}' could not be updated.")
+
+    return updated_node
+
+def delete_node(node_id: str) -> bool:
+    """
+    Deletes a node from the database.
+
+    Args:
+        node_id: The ID of the node to delete.
     
-    # Write the modified list of nodes back to the state.
-    nodes[node_index] = node_to_update
-    state_manager.write_nodes(nodes)
-    
-    return node_to_update
+    Returns:
+        True if the node was deleted, False otherwise.
+    """
+    return state_manager.delete_node(node_id)
 
 def create_edge(source_id: str, label: str, target_id: str) -> Dict[str, Any]:
     """
-    Creates a new edge between two nodes and saves it to the state.
+    Creates a new edge between two nodes and saves it to the database.
 
     Args:
         source_id: The ID of the source node.
@@ -131,7 +120,7 @@ def create_edge(source_id: str, label: str, target_id: str) -> Dict[str, Any]:
         The created edge as a dictionary.
         
     Raises:
-        HTTPException: If either the source or target node does not exist.
+        ValueError: If either the source or target node does not exist.
     """
     nodes = state_manager.read_nodes()
     node_ids = {node["id"] for node in nodes}
@@ -142,12 +131,20 @@ def create_edge(source_id: str, label: str, target_id: str) -> Dict[str, Any]:
         raise ValueError(f"Target node with id '{target_id}' not found.")
 
     new_edge = Edge(source_id=source_id, label=label, target_id=target_id)
-    
-    edges = state_manager.read_edges()
-    edges.append(new_edge.model_dump(mode="json"))
-    state_manager.write_edges(edges)
-    
-    return new_edge.model_dump(mode="json")
+    edge_data = new_edge.model_dump(mode="json")
+    return state_manager.add_edge(edge_data)
+
+def delete_edge(edge_id: str) -> bool:
+    """
+    Deletes an edge from the database.
+
+    Args:
+        edge_id: The ID of the edge to delete.
+
+    Returns:
+        True if the edge was deleted, False otherwise.
+    """
+    return state_manager.delete_edge(edge_id)
 
 def get_connected_nodes(node_id: str, label: Optional[str] = None) -> List[Dict[str, Any]]:
     """
@@ -166,19 +163,15 @@ def get_connected_nodes(node_id: str, label: Optional[str] = None) -> List[Dict[
     connected_node_ids = set()
     
     for edge in edges:
-        # Filter by label if one is provided
         if label and edge.get("label") != label:
             continue
 
-        # Check if the edge involves our target node
         if edge.get("source_id") == node_id:
             connected_node_ids.add(edge.get("target_id"))
         elif edge.get("target_id") == node_id:
             connected_node_ids.add(edge.get("source_id"))
             
-    # Return the full node objects for the connected IDs
     return [node for node in nodes if node.get("id") in connected_node_ids]
-
 
 def search_nodes(
     query: Optional[str] = None,
@@ -198,11 +191,9 @@ def search_nodes(
     """
     nodes = state_manager.read_nodes()
 
-    # Filter by node type if provided.
     if node_type:
         nodes = [node for node in nodes if node.get("type") == node_type]
 
-    # Filter by tags if provided.
     if tags:
         nodes = [
             node
@@ -210,7 +201,6 @@ def search_nodes(
             if any(tag in node.get("properties", {}).get("tags", []) for tag in tags)
         ]
 
-    # Filter by query string if provided.
     if query:
         query = query.lower()
         filtered_nodes = []
@@ -232,7 +222,6 @@ def search_nodes(
         return filtered_nodes
 
     return nodes
-
 
 def get_all_tags() -> List[str]:
     """
