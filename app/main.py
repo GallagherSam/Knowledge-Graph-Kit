@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict, Any
 from fastmcp import FastMCP
+import argparse
 
 # Import the service modules that contain the business logic
 from app.tools import note as note_service
@@ -8,6 +9,7 @@ from app.tools import project as project_service
 from app.tools import shared as shared_service
 from app.tools import task as task_service
 from app.models import AnyNode
+from app.config import load_config, config
 
 
 # This is the central FastMCP application instance.
@@ -393,9 +395,6 @@ def semantic_search(
     """
     return shared_service.semantic_search(query=query, node_type=node_type)
 
-
-import argparse
-from app.config import load_config, config
 
 def main():
     """
