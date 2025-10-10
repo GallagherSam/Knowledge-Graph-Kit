@@ -329,6 +329,53 @@ def get_all_tags() -> List[str]:
     return shared_service.get_all_tags()
 
 
+@mcp.tool
+def delete_node(node_id: str) -> bool:
+    """
+    Deletes a node by its unique ID.
+
+    Args:
+        node_id: The ID of the node to delete.
+
+    Returns:
+        True if the node was successfully deleted, False otherwise.
+    """
+    return shared_service.delete_node(node_id=node_id)
+
+
+@mcp.tool
+def delete_edge(source_id: str, target_id: str, label: str) -> bool:
+    """
+    Deletes an edge between two nodes, specified by the source and target IDs and the edge label.
+
+    Args:
+        source_id: The ID of the source node.
+        target_id: The ID of the target node.
+        label: The label of the edge to delete.
+
+    Returns:
+        True if the edge was successfully deleted, False otherwise.
+    """
+    return shared_service.delete_edge(
+        source_id=source_id, target_id=target_id, label=label
+    )
+
+
+@mcp.tool
+def rename_tag(old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
+    """
+    Renames a specific tag on all nodes where it is present.
+
+    Args:
+        old_tag: The current name of the tag.
+        new_tag: The new name for the tag.
+
+    Returns:
+        A list of the node objects that were updated.
+    """
+    return shared_service.rename_tag(old_tag=old_tag, new_tag=new_tag)
+
+
 if __name__ == "__main__":
     # Run the MCP server
     mcp.run(transport='http', host='0.0.0.0',  port=8000)
