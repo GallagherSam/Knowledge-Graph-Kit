@@ -166,6 +166,24 @@ Searches for nodes based on a query string, type, and tags.
 #### `get_all_tags`
 Retrieves a sorted list of all unique tags from all nodes.
 
+#### `delete_node`
+Deletes a node by its unique ID.
+
+*   **`node_id`** (str): The ID of the node to delete.
+
+#### `delete_edge`
+Deletes an edge between two nodes, specified by the source and target IDs and the edge label.
+
+*   **`source_id`** (str): The ID of the source node.
+*   **`target_id`** (str): The ID of the target node.
+*   **`label`** (str): The label of the edge to delete.
+
+#### `rename_tag`
+Renames a specific tag on all nodes where it is present.
+
+*   **`old_tag`** (str): The current name of the tag.
+*   **`new_tag`** (str): The new name for the tag.
+
 ## 5. Example Workflow
 
 Here is a simple example of how to use the tools to manage a project.
