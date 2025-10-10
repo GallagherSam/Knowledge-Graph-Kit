@@ -394,6 +394,27 @@ def semantic_search(
     return shared_service.semantic_search(query=query, node_type=node_type)
 
 
-if __name__ == "__main__":
+import argparse
+from app.config import load_config
+
+def main():
+    """
+    Main function to run the MCP server.
+    """
+    parser = argparse.ArgumentParser(description="Run the Notes Graph MCP server.")
+    parser.add_argument(
+        '--config',
+        type=str,
+        default='config.json',
+        help='Path to the configuration file.'
+    )
+    args = parser.parse_args()
+
+    # Load the configuration
+    load_config(args.config)
+
     # Run the MCP server
-    mcp.run(transport='http', host='0.0.0.0',  port=8000)
+    mcp.run(transport='http', host='0.0.0.0', port=8000)
+
+if __name__ == "__main__":
+    main()

@@ -8,10 +8,19 @@ from typing import List, Dict, Any, Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from .config import config
+
 # Constants
-CHROMA_DATA_PATH = "chroma_data"
 COLLECTION_NAME = "nodes"
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+def get_chroma_data_path() -> str:
+    """Returns the Chroma data path from the config."""
+    return config.get("CHROMA_DATA_PATH", "chroma_data")
+
+def get_embedding_model() -> str:
+    """Returns the embedding model from the config."""
+    return config.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+
 
 class VectorStore:
     """
@@ -24,9 +33,9 @@ class VectorStore:
         the embedding function, and creating or getting the collection.
         """
         try:
-            self.client = chromadb.PersistentClient(path=CHROMA_DATA_PATH, settings=Settings(anonymized_telemetry=False))
+            self.client = chromadb.PersistentClient(path=get_chroma_data_path(), settings=Settings(anonymized_telemetry=False))
             self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-                model_name=EMBEDDING_MODEL
+                model_name=get_embedding_model()
             )
             self.collection = self.client.get_or_create_collection(
                 name=COLLECTION_NAME,
