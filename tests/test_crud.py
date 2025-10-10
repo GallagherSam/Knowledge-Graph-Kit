@@ -1,6 +1,7 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
 from pydantic import ValidationError
+import datetime
 
 from app import crud
 from app.models import TaskProperties, NoteProperties, PersonProperties, ProjectProperties
@@ -13,14 +14,20 @@ def mock_state_manager():
 
 def test_create_node_success(mock_state_manager):
     """Test successful creation of a node."""
-    mock_state_manager.read_nodes.return_value = []
     properties = {"description": "Test Task", "status": "todo"}
+
+    # Mock the return value of the state_manager's add_node method
+    mock_state_manager.add_node.return_value = {
+        "id": "some-uuid",
+        "type": "Task",
+        "properties": properties
+    }
 
     new_node = crud.create_node(node_type="Task", properties=properties)
 
     assert new_node["type"] == "Task"
     assert new_node["properties"]["description"] == "Test Task"
-    mock_state_manager.write_nodes.assert_called_once()
+    mock_state_manager.add_node.assert_called_once()
 
 def test_create_node_invalid_properties(mock_state_manager):
     """Test creating a node with invalid properties raises ValidationError."""
@@ -61,12 +68,18 @@ def test_get_nodes_by_property(mock_state_manager):
 
 def test_update_node_success(mock_state_manager):
     """Test successfully updating a node."""
-    mock_nodes = [{"id": "1", "type": "Note", "properties": {"title": "Old", "content": "Content"}}]
+    created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    mock_nodes = [{"id": "1", "type": "Note", "properties": {"title": "Old", "content": "Content", "created_at": created_at, "modified_at": created_at, "tags": []}}]
     mock_state_manager.read_nodes.return_value = mock_nodes
+
+    updated_properties = {"title": "New", "content": "Content", "created_at": created_at, "modified_at": created_at, "tags": []}
+    mock_state_manager.update_node_in_db.return_value = {"id": "1", "type": "Note", "properties": updated_properties}
+
 
     updated_node = crud.update_node(node_id="1", properties={"title": "New"})
     assert updated_node["properties"]["title"] == "New"
-    mock_state_manager.write_nodes.assert_called_once()
+
+    mock_state_manager.update_node_in_db.assert_called_once_with("1", ANY)
 
 def test_update_node_not_found(mock_state_manager):
     """Test that updating a non-existent node raises an exception."""
@@ -75,16 +88,28 @@ def test_update_node_not_found(mock_state_manager):
         crud.update_node(node_id="1", properties={"title": "New"})
     assert "not found" in str(exc_info.value)
 
+def test_delete_node_success(mock_state_manager):
+    """Test successful deletion of a node."""
+    crud.delete_node("1")
+    mock_state_manager.delete_node.assert_called_once_with("1")
+
 def test_create_edge_success(mock_state_manager):
     """Test successful creation of an edge."""
     mock_nodes = [{"id": "1", "type": "Task"}, {"id": "2", "type": "Project"}]
     mock_state_manager.read_nodes.return_value = mock_nodes
-    mock_state_manager.read_edges.return_value = []
+
+    mock_state_manager.add_edge.return_value = {"id": "e1", "source_id": "1", "target_id": "2", "label": "part_of"}
 
     new_edge = crud.create_edge(source_id="1", target_id="2", label="part_of")
     assert new_edge["source_id"] == "1"
     assert new_edge["target_id"] == "2"
-    mock_state_manager.write_edges.assert_called_once()
+    mock_state_manager.add_edge.assert_called_once()
+
+def test_delete_edge_success(mock_state_manager):
+    """Test successful deletion of an edge."""
+    crud.delete_edge("e1")
+    mock_state_manager.delete_edge.assert_called_once_with("e1")
+
 
 def test_create_edge_node_not_found(mock_state_manager):
     """Test creating an edge with a non-existent source or target node."""
@@ -101,8 +126,8 @@ def test_get_connected_nodes(mock_state_manager):
         {"id": "3", "type": "Person"},
     ]
     mock_edges = [
-        {"source_id": "1", "target_id": "2", "label": "part_of"},
-        {"source_id": "3", "target_id": "1", "label": "assigned_to"},
+        {"id": "e1", "source_id": "1", "target_id": "2", "label": "part_of"},
+        {"id": "e2", "source_id": "3", "target_id": "1", "label": "assigned_to"},
     ]
     mock_state_manager.read_nodes.return_value = mock_nodes
     mock_state_manager.read_edges.return_value = mock_edges

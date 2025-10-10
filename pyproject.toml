@@ -5,7 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "fastmcp"
+    "fastmcp",
+    "sqlalchemy"
 ]
 
 [project.optional-dependencies]
@@ -15,3 +16,6 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = "."
+
+[tool.setuptools]
+packages = ["app"]

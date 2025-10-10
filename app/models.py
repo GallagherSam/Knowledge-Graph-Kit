@@ -44,6 +44,7 @@ class ProjectProperties(BaseModel):
 
 class Edge(BaseModel):
     """Model for an edge connecting two nodes."""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     source_id: str
     target_id: str
     label: str

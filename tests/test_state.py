@@ -1,55 +1,115 @@
-import json
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.database import Base
 from app.state import State
 
 @pytest.fixture
-def state_manager(tmp_path, monkeypatch):
-    """Fixture to create a State instance with a temporary data directory."""
-    data_dir = tmp_path / "data"
-    nodes_file = data_dir / "nodes.json"
-    edges_file = data_dir / "edges.json"
+def state_manager(monkeypatch):
+    """Fixture to create a State instance with an in-memory SQLite database."""
+    engine = create_engine("sqlite:///:memory:")
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-    # Monkeypatch the file paths in the state module
-    monkeypatch.setattr("app.state.DATA_DIR", data_dir)
-    monkeypatch.setattr("app.state.NODES_FILE", nodes_file)
-    monkeypatch.setattr("app.state.EDGES_FILE", edges_file)
+    Base.metadata.create_all(bind=engine)
 
-    yield State()
+    # Monkeypatch the session local in the state module to use the in-memory database
+    monkeypatch.setattr("app.state.SessionLocal", TestingSessionLocal)
 
-def test_initialize_state(state_manager, tmp_path):
-    """Test that the data directory and files are created on initialization."""
-    data_dir = tmp_path / "data"
-    assert data_dir.exists()
-    nodes_file = data_dir / "nodes.json"
-    edges_file = data_dir / "edges.json"
-    assert nodes_file.exists()
-    assert edges_file.exists()
+    state = State()
+    yield state
 
-    with open(nodes_file, "r") as f:
-        assert json.load(f) == []
-    with open(edges_file, "r") as f:
-        assert json.load(f) == []
+    Base.metadata.drop_all(bind=engine)
 
-def test_write_and_read_nodes(state_manager):
-    """Test writing to and reading from the nodes file."""
-    nodes_data = [{"id": "1", "type": "Task", "properties": {}}]
-    state_manager.write_nodes(nodes_data)
-    read_data = state_manager.read_nodes()
-    assert read_data == nodes_data
+def test_initialize_state(state_manager):
+    """Test that the database tables are created on initialization."""
+    with state_manager._db_session() as db:
+        assert "nodes" in Base.metadata.tables
+        assert "edges" in Base.metadata.tables
 
-def test_write_and_read_edges(state_manager):
-    """Test writing to and reading from the edges file."""
-    edges_data = [{"source_id": "1", "target_id": "2", "label": "connects"}]
-    state_manager.write_edges(edges_data)
-    read_data = state_manager.read_edges()
-    assert read_data == edges_data
+def test_add_and_read_nodes(state_manager):
+    """Test adding and reading nodes from the database."""
+    node_data = {"id": "1", "type": "Task", "properties": {"description": "Test"}}
+    created_node = state_manager.add_node(node_data)
+
+    assert created_node["id"] == "1"
+
+    nodes = state_manager.read_nodes()
+    assert len(nodes) == 1
+    assert nodes[0]["id"] == "1"
+    assert nodes[0]["type"] == "Task"
+    assert nodes[0]["properties"]["description"] == "Test"
+
+def test_update_node(state_manager):
+    """Test updating a node in the database."""
+    node_data = {"id": "1", "type": "Task", "properties": {"description": "Old"}}
+    state_manager.add_node(node_data)
+
+    updated_node = state_manager.update_node_in_db("1", {"description": "New"})
+
+    assert updated_node["properties"]["description"] == "New"
+
+    nodes = state_manager.read_nodes()
+    assert len(nodes) == 1
+    assert nodes[0]["properties"]["description"] == "New"
+
+def test_delete_node(state_manager):
+    """Test deleting a node and its connected edges."""
+    node1 = {"id": "1", "type": "Task", "properties": {}}
+    node2 = {"id": "2", "type": "Project", "properties": {}}
+    state_manager.add_node(node1)
+    state_manager.add_node(node2)
+    edge1 = {"id": "e1", "source_id": "1", "target_id": "2", "label": "connects"}
+    state_manager.add_edge(edge1)
+
+    result = state_manager.delete_node("1")
+    assert result is True
+
+    nodes = state_manager.read_nodes()
+    assert len(nodes) == 1
+
+    edges = state_manager.read_edges()
+    assert len(edges) == 0
+
+def test_delete_edge(state_manager):
+    """Test deleting an edge from the database."""
+    node1 = {"id": "1", "type": "Task", "properties": {}}
+    node2 = {"id": "2", "type": "Project", "properties": {}}
+    state_manager.add_node(node1)
+    state_manager.add_node(node2)
+    edge_data = {"id": "e1", "source_id": "1", "target_id": "2", "label": "connects"}
+    state_manager.add_edge(edge_data)
+
+    result = state_manager.delete_edge("e1")
+    assert result is True
+
+    edges = state_manager.read_edges()
+    assert len(edges) == 0
+
+def test_add_and_read_edges(state_manager):
+    """Test adding and reading edges from the database."""
+    node1 = {"id": "1", "type": "Task", "properties": {}}
+    node2 = {"id": "2", "type": "Project", "properties": {}}
+    state_manager.add_node(node1)
+    state_manager.add_node(node2)
+
+    edge_data = {"id": "e1", "source_id": "1", "target_id": "2", "label": "connects"}
+    created_edge = state_manager.add_edge(edge_data)
+
+    assert created_edge["id"] == "e1"
+
+    edges = state_manager.read_edges()
+    assert len(edges) == 1
+    assert edges[0]["id"] == "e1"
+    assert edges[0]["source_id"] == "1"
+    assert edges[0]["target_id"] == "2"
+    assert edges[0]["label"] == "connects"
 
 def test_read_nodes_empty(state_manager):
-    """Test reading the nodes file when it's empty."""
-    read_data = state_manager.read_nodes()
-    assert read_data == []
+    """Test reading nodes when the table is empty."""
+    nodes = state_manager.read_nodes()
+    assert nodes == []
 
 def test_read_edges_empty(state_manager):
-    """Test reading the edges file when it's empty."""
-    read_data = state_manager.read_edges()
-    assert read_data == []
+    """Test reading edges when the table is empty."""
+    edges = state_manager.read_edges()
+    assert edges == []
