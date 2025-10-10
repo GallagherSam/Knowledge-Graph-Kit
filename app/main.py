@@ -376,6 +376,24 @@ def rename_tag(old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
     return shared_service.rename_tag(old_tag=old_tag, new_tag=new_tag)
 
 
+@mcp.tool
+def semantic_search(
+    query: str,
+    node_type: Optional[AnyNode] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Performs a semantic search for nodes based on a query string.
+
+    Args:
+        query: The query string to search for.
+        node_type: The type of nodes to filter by (e.g., "Task", "Note").
+
+    Returns:
+        A list of nodes that are semantically similar to the query.
+    """
+    return shared_service.semantic_search(query=query, node_type=node_type)
+
+
 if __name__ == "__main__":
     # Run the MCP server
     mcp.run(transport='http', host='0.0.0.0',  port=8000)

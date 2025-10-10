@@ -6,7 +6,9 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "fastmcp",
-    "sqlalchemy"
+    "sqlalchemy",
+    "sentence-transformers",
+    "chromadb",
 ]
 
 [project.optional-dependencies]
