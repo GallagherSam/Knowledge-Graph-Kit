@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict, Any
 from fastmcp import FastMCP
+import argparse
 
 # Import the service modules that contain the business logic
 from app.tools import note as note_service
@@ -8,6 +9,7 @@ from app.tools import project as project_service
 from app.tools import shared as shared_service
 from app.tools import task as task_service
 from app.models import AnyNode
+from app.config import load_config, config
 
 
 # This is the central FastMCP application instance.
@@ -394,6 +396,28 @@ def semantic_search(
     return shared_service.semantic_search(query=query, node_type=node_type)
 
 
-if __name__ == "__main__":
+def main():
+    """
+    Main function to run the MCP server.
+    """
+    parser = argparse.ArgumentParser(description="Run the Notes Graph MCP server.")
+    parser.add_argument(
+        '--config',
+        type=str,
+        default='config.json',
+        help='Path to the configuration file.'
+    )
+    args = parser.parse_args()
+
+    # Load the configuration
+    load_config(args.config)
+
+    # Get host and port from config
+    host = config["HOST"]
+    port = config["PORT"]
+
     # Run the MCP server
-    mcp.run(transport='http', host='0.0.0.0',  port=8000)
+    mcp.run(transport='http', host=host, port=port)
+
+if __name__ == "__main__":
+    main()
