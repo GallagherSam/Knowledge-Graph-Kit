@@ -147,3 +147,4 @@ To add a new type of node to the knowledge graph, you'll need to:
 4.  **Expose the functions as tools** in `app/main.py` using the `@mcp.tool` decorator.
 
 By following this pattern, you can easily extend the Knowledge Graph Kit to support any kind of interconnected data your application requires.
+
