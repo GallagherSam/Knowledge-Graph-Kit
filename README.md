@@ -1,216 +1,109 @@
-# Notes Graph MCP: Operating Manual
+# Knowledge Graph Kit
 
-This document outlines the purpose, structure, and available tools for the Notes Graph Managed Component (MCP). As an LLM, you should use this manual to understand how to interact with the user's knowledge graph.
+Knowledge Graph Kit is a Python-based framework for building AI agents that can reason about and interact with a knowledge graph. It provides a flexible and extensible toolkit for creating, managing, and querying interconnected data, making it easy to build applications that require complex data relationships and semantic search capabilities.
 
-## 1. Core Concept: The Knowledge Graph
+## Core Concepts
 
-The system is built around a knowledge graph. This means all information is stored as one of two things:
+The kit is built around a simple yet powerful knowledge graph model:
 
-*   **Nodes:** These are the primary entities or "things" in the graph.
-*   **Edges:** These are the *relationships* that connect the nodes together.
+*   **Nodes:** Represent entities such as tasks, notes, people, or projects. Each node has a specific type and a set of properties.
+*   **Edges:** Define the relationships between nodes, such as `part_of`, `mentions`, or `related_to`.
 
-Your primary purpose is to translate user requests into the correct sequence of tool calls to create, find, update, and connect these nodes and edges.
+This structure allows you to create a rich, interconnected web of information that your AI agents can traverse and query.
 
-## 2. Node Types
+## Features
 
-There are four types of nodes you can manage:
+*   **Flexible Node Types:** Pre-built schemas for Tasks, Notes, Persons, and Projects.
+*   **Extensible:** Easily add new node and edge types to fit your specific domain.
+*   **Semantic Search:** Find conceptually related nodes even without keyword matches.
+*   **Full-Text Search:** Powerful keyword-based search across all nodes.
+*   **Tagging System:** Organize and filter nodes with a flexible tagging system.
+*   **FastAPI Integration:** Exposes a clean, tool-based API for your AI agents.
 
-| Node Type | Description |
-| :--- | :--- |
-| **Task** | An actionable item, like a to-do. It has a `status` (e.g., 'todo', 'done') and can have a `due_date`. |
-| **Note** | A piece of unstructured text or information. It has a `title` and `content`. |
-| **Person** | Represents a person. This is useful for linking notes or tasks to individuals. |
-| **Project** | A high-level initiative or goal that can contain tasks or be documented by notes. |
+## Getting Started
 
-## 3. Edge / Relationship Types
+### Prerequisites
 
-Edges connect nodes and give the graph its structure. The most common relationship is `part_of`, used to link a task to a project. When you create an edge, you must specify a `label` to describe the relationship.
+*   Python 3.11+
+*   `uv` (or `pip`) for package management
 
-Common labels include:
-*   `part_of`
-*   `mentions`
-*   `related_to`
-*   `documents`
+### Installation
 
-## 4. Available Tools
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/knowledge-graph-kit.git
+    cd knowledge-graph-kit
+    ```
 
-The following is a complete reference of the tools you can use to interact with the knowledge graph.
+2.  **Create a virtual environment and install dependencies:**
+    ```bash
+    uv venv
+    uv pip install -e ".[dev]"
+    ```
 
----
+3.  **Run the server:**
+    ```bash
+    python app/main.py
+    ```
+    The API server will be running at `http://0.0.0.0:8000`.
 
-### Note Tools
+## Gemini CLI Integration
 
-#### `create_note`
-Creates a new note with the given properties.
+To use the Knowledge Graph Kit as a tool provider for the Gemini CLI, you need to run it as a Managed Component Proxy (MCP) server.
 
-*   **`title`** (str): The title of the note.
-*   **`content`** (str): The markdown content of the note.
-*   **`tags`** (Optional[List[str]]): A list of tags to categorize the note.
+1.  **Start the MCP server:**
+    A convenience script is provided to run the server in this mode.
+    ```bash
+    ./scripts/start_mcp.sh
+    ```
 
-#### `get_notes`
-Retrieves a list of notes, optionally filtering by tags.
+2.  **Configure Gemini CLI:**
+    Add the following configuration to your `~/.gemini/settings.json` file. This tells the Gemini CLI where to find the Knowledge Graph Kit's tools.
 
-*   **`tags`** (Optional[List[str]]): Filter notes that have any of the specified tags.
+    ```json
+    {
+      "mcpServers": {
+        "Knowledge Graph Kit": {
+          "httpUrl": "http://localhost:8000/mcp"
+        }
+      }
+    }
+    ```
+    *Note: If you are running the Gemini CLI in a different environment (like a Docker container), replace `localhost` with the appropriate IP address of the machine running the server.*
 
-#### `update_note`
-Updates the properties of an existing note.
+    Once configured, you can interact with your knowledge graph directly from the Gemini CLI.
 
-*   **`note_id`** (str): The unique ID of the note to update.
-*   **`title`** (Optional[str]): A new title for the note.
-*   **`content`** (Optional[str]): New content for the note.
-*   **`tags`** (Optional[List[str]]): A new list of tags for the note.
+## API & Tools
 
----
+The Knowledge Graph Kit exposes a comprehensive set of tools for interacting with the knowledge graph. These tools are designed to be used by an AI agent to perform CRUD operations on nodes and edges, as well as to search and discover relationships.
 
-### Person Tools
+For a complete reference of all available tools and their parameters, please see the [LLM Operating Manual](./INSTRUCTIONS.md).
 
-#### `create_person`
-Creates a new person node.
+### Example Workflow
 
-*   **`name`** (str): The full name of the person.
-*   **`tags`** (Optional[List[str]]): A list of tags to categorize the person.
-*   **`metadata`** (Optional[Dict[str, Any]]): A dictionary for additional data like contact info or role.
+Here's a simple example of how an agent might use the tools to create a project, add a task, and link them together:
 
-#### `get_persons`
-Retrieves a list of persons, optionally filtering by name or tags.
+1.  **Create a project:**
+    ```python
+    create_project(name='Website Redesign', description='A project to redesign the company website.')
+    ```
 
-*   **`name`** (Optional[str]): Filter persons by exact name match.
-*   **`tags`** (Optional[List[str]]): Filter persons that have any of the specified tags.
+2.  **Create a task:**
+    ```python
+    create_task(description='Gather requirements')
+    ```
 
-#### `update_person`
-Updates the properties of an existing person.
+3.  **Link the task to the project:**
+    ```python
+    # First, find the project and task IDs
+    project = get_projects(name='Website Redesign')[0]
+    task = get_tasks(description='Gather requirements')[0]
 
-*   **`person_id`** (str): The unique ID of the person to update.
-*   **`name`** (Optional[str]): A new name for the person.
-*   **`tags`** (Optional[List[str]]): A new list of tags for the person.
-*   **`metadata`** (Optional[Dict[str, Any]]): A new metadata dictionary.
+    # Create the edge
+    create_edge(source_id=task['id'], label='part_of', target_id=project['id'])
+    ```
 
----
-
-### Project Tools
-
-#### `create_project`
-Creates a new project node.
-
-*   **`name`** (str): The name of the project.
-*   **`description`** (str): A description of the project.
-*   **`status`** (str): The current status of the project ('active' or 'archived'). Defaults to 'active'.
-*   **`tags`** (Optional[List[str]]): A list of tags to categorize the project.
-
-#### `get_projects`
-Retrieves a list of projects, optionally filtering by status or tags.
-
-*   **`status`** (Optional[str]): Filter projects by their status.
-*   **`tags`** (Optional[List[str]]): Filter projects that have any of the specified tags.
-
-#### `update_project`
-Updates the properties of an existing project.
-
-*   **`project_id`** (str): The unique ID of the project to update.
-*   **`name`** (Optional[str]): A new name for the project.
-*   **`description`** (Optional[str]): A new description for the project.
-*   **`status`** (Optional[str]): A new status for the project.
-*   **`tags`** (Optional[List[str]]): A new list of tags for the project.
-
----
-
-### Task Tools
-
-#### `create_task`
-Creates a new task with the given properties.
-
-*   **`description`** (str): The main description of the task.
-*   **`status`** (str): The current status ('todo', 'in_progress', 'done', etc.). Defaults to 'todo'.
-*   **`tags`** (Optional[List[str]]): A list of tags to categorize the task.
-*   **`due_date`** (Optional[str]): An optional due date in ISO format (e.g., '2025-10-07T10:00:00').
-
-#### `get_tasks`
-Retrieves a list of tasks, optionally filtering by status or tags.
-
-*   **`status`** (Optional[str]): Filter tasks by their status.
-*   **`tags`** (Optional[List[str]]): Filter tasks that have any of the specified tags.
-
-#### `update_task`
-Updates the properties of an existing task.
-
-*   **`task_id`** (str): The unique ID of the task to update.
-*   **`description`** (Optional[str]): A new description for the task.
-*   **`status`** (Optional[str]): A new status for the task.
-*   **`tags`** (Optional[List[str]]): A new list of tags for the task.
-*   **`due_date`** (Optional[str]): A new due date for the task.
-
----
-
-### Graph & Relationship Tools
-
-#### `create_edge`
-Creates a relationship (edge) between two existing nodes.
-
-*   **`source_id`** (str): The unique ID of the starting node.
-*   **`label`** (str): The description of the relationship (e.g., 'part_of', 'mentions').
-*   **`target_id`** (str): The unique ID of the ending node.
-
-#### `get_related_nodes`
-Finds all nodes connected to a given node via an edge. This is the most efficient way to discover relationships.
-
-*   **`node_id`** (str): The unique ID of the node to start from.
-*   **`label`** (Optional[str]): An optional relationship label to filter by (e.g., 'part_of', 'mentions').
-
-#### `search_nodes`
-Searches for nodes based on a query string, type, and tags. This is a literal, keyword-based search.
-
-*   **`query`** (Optional[str]): A string to search for in the relevant fields of the nodes.
-*   **`node_type`** (Optional[str]): The type of nodes to filter by (e.g., "Task", "Note").
-*   **`tags`** (Optional[List[str]]): A list of tags to filter by.
-
-#### `semantic_search`
-Performs a semantic (meaning-based) search for nodes using a vector embedding model. This is useful for finding conceptually related nodes even if they don't share keywords.
-
-*   **`query`** (str): The query string to search for.
-*   **`node_type`** (Optional[str]): The type of nodes to filter by (e.g., "Task", "Note").
-
-#### `get_all_tags`
-Retrieves a sorted list of all unique tags from all nodes.
-
-#### `delete_node`
-Deletes a node by its unique ID.
-
-*   **`node_id`** (str): The ID of the node to delete.
-
-#### `delete_edge`
-Deletes an edge between two nodes, specified by the source and target IDs and the edge label.
-
-*   **`source_id`** (str): The ID of the source node.
-*   **`target_id`** (str): The ID of the target node.
-*   **`label`** (str): The label of the edge to delete.
-
-#### `rename_tag`
-Renames a specific tag on all nodes where it is present.
-
-*   **`old_tag`** (str): The current name of the tag.
-*   **`new_tag`** (str): The new name for the tag.
-
-## 5. Example Workflow
-
-Here is a simple example of how to use the tools to manage a project.
-
-**User:** "Create a new project called 'Website Redesign'."
-**You:** `create_project(name='Website Redesign', description='A project to redesign the company website.')`
-
-**User:** "Add a task to 'Gather requirements' for the website redesign."
-**You:**
-1.  `get_projects(name='Website Redesign')` to find the project's ID. Let's say the ID is `project_123`.
-2.  `create_task(description='Gather requirements')` to create the task. Let's say the ID is `task_456`.
-3.  `create_edge(source_id='task_456', label='part_of', target_id='project_123')` to link them.
-
-**User:** "What are the tasks for the 'Website Redesign' project?"
-**You:**
-1. `get_projects(name='Website Redesign')` to find the project's ID (`project_123`).
-2. `get_related_nodes(node_id='project_123', label='part_of')` to efficiently find all tasks that are part of the project.
-
-By following this structure, you can effectively manage the user's knowledge graph.
-
-## 6. Configuration
+## Configuration
 
 The application can be configured via a JSON file. By default, it looks for a `config.json` file in the root of the project. You can also specify a different configuration file when starting the application.
 
@@ -241,3 +134,16 @@ The following options are available for configuration:
 | `PORT` | integer | The port for the MCP server. | `8000` |
 
 An example configuration file, `config.json`, is provided in the root of the repository.
+
+## Development
+
+### Adding a New Node Type
+
+To add a new type of node to the knowledge graph, you'll need to:
+
+1.  **Define a Pydantic model** for the node's properties in `app/models.py`.
+2.  **Create a new service module** in the `app/tools/` directory (e.g., `app/tools/document.py`).
+3.  **Implement the CRUD functions** for your new node type in the service module.
+4.  **Expose the functions as tools** in `app/main.py` using the `@mcp.tool` decorator.
+
+By following this pattern, you can easily extend the Knowledge Graph Kit to support any kind of interconnected data your application requires.

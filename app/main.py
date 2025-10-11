@@ -12,7 +12,7 @@ from app.models import AnyNode
 
 # This is the central FastMCP application instance.
 mcp = FastMCP(
-    name="Notes Graph MCP",
+    name="Knowledge Graph Kit",
     instructions="You are an agent managing a knowledge graph. Use the available tools to create, retrieve, update, and connect nodes (tasks, notes, people, projects) to fulfill user requests."
 )
 
