@@ -1,7 +1,8 @@
 from typing import List, Dict, Any, Optional, Type
+from sqlalchemy.orm import Session
+from sqlalchemy import String
+from app.vector_store import VectorStore
 
-from app.state import state_manager
-from app.vector_store import vector_store_manager
 from app.models import (
     Node,
     Edge,
@@ -11,6 +12,7 @@ from app.models import (
     ProjectProperties,
     AnyNode,
 )
+from app.state import NodeModel, EdgeModel
 
 # A mapping from the string representation of a node type to its Pydantic model class.
 PROPERTIES_MODELS: Dict[AnyNode, Type[TaskProperties | NoteProperties | PersonProperties | ProjectProperties]] = {
@@ -20,11 +22,13 @@ PROPERTIES_MODELS: Dict[AnyNode, Type[TaskProperties | NoteProperties | PersonPr
     "Project": ProjectProperties,
 }
 
-def create_node(node_type: AnyNode, properties: Dict[str, Any]) -> Dict[str, Any]:
+def create_node(db: Session, vector_store: VectorStore, node_type: AnyNode, properties: Dict[str, Any]) -> Dict[str, Any]:
     """
     Creates a new node, validates its properties, and saves it to the database.
 
     Args:
+        db: The SQLAlchemy database session.
+        vector_store: The vector store instance.
         node_type: The type of the node to create.
         properties: A dictionary of properties for the node.
 
@@ -35,54 +39,66 @@ def create_node(node_type: AnyNode, properties: Dict[str, Any]) -> Dict[str, Any
     validated_properties = PropertiesModel(**properties).model_dump(mode="json")
     new_node = Node(type=node_type, properties=validated_properties)
     node_data = new_node.model_dump(mode="json")
-    created_node = state_manager.add_node(node_data)
-    vector_store_manager.add_node(created_node)
+
+    db_node = NodeModel(**node_data)
+    db.add(db_node)
+    db.commit()
+    db.refresh(db_node)
+    created_node = {"id": db_node.id, "type": db_node.type, "properties": db_node.properties}
+
+    vector_store.add_node(created_node)
     return created_node
 
-def get_nodes(node_type: Optional[AnyNode] = None, **kwargs) -> List[Dict[str, Any]]:
+def get_nodes(db: Session, node_type: Optional[AnyNode] = None, **kwargs) -> List[Dict[str, Any]]:
     """
     Retrieves nodes from the state, with optional filtering by type and properties.
 
     Args:
+        db: The SQLAlchemy database session.
         node_type: The type of nodes to filter by.
         **kwargs: Arbitrary keyword arguments to filter node properties by.
 
     Returns:
         A list of nodes that match the filter criteria.
     """
-    nodes = state_manager.read_nodes()
+    query = db.query(NodeModel)
     
     if node_type:
-        nodes = [node for node in nodes if node.get("type") == node_type]
+        query = query.filter(NodeModel.type == node_type)
         
-    if kwargs:
-        filtered_nodes = []
-        for node in nodes:
-            properties = node.get("properties", {})
-            if all(properties.get(key) == value for key, value in kwargs.items()):
-                filtered_nodes.append(node)
-        nodes = filtered_nodes
-        
-    return nodes
+    all_nodes = [{"id": n.id, "type": n.type, "properties": n.properties} for n in query.all()]
 
-def get_nodes_by_ids(node_ids: List[str]) -> List[Dict[str, Any]]:
+    if not kwargs:
+        return all_nodes
+
+    filtered_nodes = []
+    for node in all_nodes:
+        properties = node.get("properties", {})
+        if all(properties.get(key) == value for key, value in kwargs.items()):
+            filtered_nodes.append(node)
+    return filtered_nodes
+
+def get_nodes_by_ids(db: Session, node_ids: List[str]) -> List[Dict[str, Any]]:
     """
     Retrieves nodes from the state by their IDs.
 
     Args:
+        db: The SQLAlchemy database session.
         node_ids: A list of node IDs to retrieve.
 
     Returns:
         A list of nodes that match the given IDs.
     """
-    nodes = state_manager.read_nodes()
-    return [node for node in nodes if node["id"] in node_ids]
+    nodes = db.query(NodeModel).filter(NodeModel.id.in_(node_ids)).all()
+    return [{"id": n.id, "type": n.type, "properties": n.properties} for n in nodes]
 
-def update_node(node_id: str, properties: Dict[str, Any]) -> Dict[str, Any]:
+def update_node(db: Session, vector_store: VectorStore, node_id: str, properties: Dict[str, Any]) -> Dict[str, Any]:
     """
     Updates the properties of a specific node.
 
     Args:
+        db: The SQLAlchemy database session.
+        vector_store: The vector store instance.
         node_id: The ID of the node to update.
         properties: A dictionary of properties to update.
 
@@ -92,46 +108,54 @@ def update_node(node_id: str, properties: Dict[str, Any]) -> Dict[str, Any]:
     Raises:
         ValueError: If the node with the given ID is not found.
     """
-    nodes = state_manager.read_nodes()
-    node_to_update = next((n for n in nodes if n["id"] == node_id), None)
+    db_node = db.query(NodeModel).filter(NodeModel.id == node_id).first()
 
-    if not node_to_update:
+    if not db_node:
         raise ValueError(f"Node with id '{node_id}' not found.")
 
-    updated_properties = node_to_update["properties"]
+    updated_properties = db_node.properties.copy()
     updated_properties.update(properties)
     
-    node_type = node_to_update["type"]
+    node_type = db_node.type
     PropertiesModel = PROPERTIES_MODELS[node_type]
     validated_properties = PropertiesModel(**updated_properties).model_dump(mode="json")
     
-    updated_node = state_manager.update_node_in_db(node_id, validated_properties)
-    if updated_node is None:
-        raise ValueError(f"Node with id '{node_id}' could not be updated.")
+    db_node.properties = validated_properties
+    db.commit()
+    db.refresh(db_node)
+    updated_node = {"id": db_node.id, "type": db_node.type, "properties": db_node.properties}
 
-    vector_store_manager.update_node(updated_node)
+    vector_store.update_node(updated_node)
     return updated_node
 
-def delete_node(node_id: str) -> bool:
+def delete_node(db: Session, vector_store: VectorStore, node_id: str) -> bool:
     """
     Deletes a node from the database.
 
     Args:
+        db: The SQLAlchemy database session.
+        vector_store: The vector store instance.
         node_id: The ID of the node to delete.
     
     Returns:
         True if the node was deleted, False otherwise.
     """
-    was_deleted = state_manager.delete_node(node_id)
-    if was_deleted:
-        vector_store_manager.delete_node(node_id)
-    return was_deleted
+    db_node = db.query(NodeModel).filter(NodeModel.id == node_id).first()
+    if db_node:
+        db.delete(db_node)
+        # Also delete connected edges
+        db.query(EdgeModel).filter((EdgeModel.source_id == node_id) | (EdgeModel.target_id == node_id)).delete(synchronize_session=False)
+        db.commit()
+        vector_store.delete_node(node_id)
+        return True
+    return False
 
-def create_edge(source_id: str, label: str, target_id: str) -> Dict[str, Any]:
+def create_edge(db: Session, source_id: str, label: str, target_id: str) -> Dict[str, Any]:
     """
     Creates a new edge between two nodes and saves it to the database.
 
     Args:
+        db: The SQLAlchemy database session.
         source_id: The ID of the source node.
         label: The label describing the relationship.
         target_id: The ID of the target node.
@@ -142,58 +166,74 @@ def create_edge(source_id: str, label: str, target_id: str) -> Dict[str, Any]:
     Raises:
         ValueError: If either the source or target node does not exist.
     """
-    nodes = state_manager.read_nodes()
-    node_ids = {node["id"] for node in nodes}
-    
-    if source_id not in node_ids:
+    source_node = db.query(NodeModel).filter(NodeModel.id == source_id).first()
+    if not source_node:
         raise ValueError(f"Source node with id '{source_id}' not found.")
-    if target_id not in node_ids:
+
+    target_node = db.query(NodeModel).filter(NodeModel.id == target_id).first()
+    if not target_node:
         raise ValueError(f"Target node with id '{target_id}' not found.")
 
     new_edge = Edge(source_id=source_id, label=label, target_id=target_id)
     edge_data = new_edge.model_dump(mode="json")
-    return state_manager.add_edge(edge_data)
 
-def delete_edge(edge_id: str) -> bool:
+    db_edge = EdgeModel(**edge_data)
+    db.add(db_edge)
+    db.commit()
+    db.refresh(db_edge)
+    return {"id": db_edge.id, "source_id": db_edge.source_id, "target_id": db_edge.target_id, "label": db_edge.label}
+
+def delete_edge(db: Session, edge_id: str) -> bool:
     """
     Deletes an edge from the database.
 
     Args:
+        db: The SQLAlchemy database session.
         edge_id: The ID of the edge to delete.
 
     Returns:
         True if the edge was deleted, False otherwise.
     """
-    return state_manager.delete_edge(edge_id)
+    db_edge = db.query(EdgeModel).filter(EdgeModel.id == edge_id).first()
+    if db_edge:
+        db.delete(db_edge)
+        db.commit()
+        return True
+    return False
 
-def get_connected_nodes(node_id: str, label: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_connected_nodes(db: Session, node_id: str, label: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Retrieves all nodes connected to a given node by an edge.
 
     Args:
+        db: The SQLAlchemy database session.
         node_id: The ID of the starting node.
         label: An optional edge label to filter the relationships by.
 
     Returns:
         A list of node dictionaries that are connected to the starting node.
     """
-    nodes = state_manager.read_nodes()
-    edges = state_manager.read_edges()
+    query = db.query(EdgeModel)
+    if label:
+        query = query.filter(EdgeModel.label == label)
+    
+    edges = query.all()
     
     connected_node_ids = set()
-    
     for edge in edges:
-        if label and edge.get("label") != label:
-            continue
-
-        if edge.get("source_id") == node_id:
-            connected_node_ids.add(edge.get("target_id"))
-        elif edge.get("target_id") == node_id:
-            connected_node_ids.add(edge.get("source_id"))
+        if edge.source_id == node_id:
+            connected_node_ids.add(edge.target_id)
+        elif edge.target_id == node_id:
+            connected_node_ids.add(edge.source_id)
             
-    return [node for node in nodes if node.get("id") in connected_node_ids]
+    if not connected_node_ids:
+        return []
+
+    nodes = db.query(NodeModel).filter(NodeModel.id.in_(list(connected_node_ids))).all()
+    return [{"id": n.id, "type": n.type, "properties": n.properties} for n in nodes]
 
 def search_nodes(
+    db: Session,
     query: Optional[str] = None,
     node_type: Optional[AnyNode] = None,
     tags: Optional[List[str]] = None,
@@ -202,6 +242,7 @@ def search_nodes(
     Searches for nodes based on a query string, type, and tags.
 
     Args:
+        db: The SQLAlchemy database session.
         query: A string to search for in the relevant fields of the nodes.
         node_type: The type of nodes to filter by.
         tags: A list of tags to filter by.
@@ -209,10 +250,12 @@ def search_nodes(
     Returns:
         A list of nodes that match the search criteria.
     """
-    nodes = state_manager.read_nodes()
+    db_query = db.query(NodeModel)
 
     if node_type:
-        nodes = [node for node in nodes if node.get("type") == node_type]
+        db_query = db_query.filter(NodeModel.type == node_type)
+
+    nodes = [{"id": n.id, "type": n.type, "properties": n.properties} for n in db_query.all()]
 
     if tags:
         nodes = [
@@ -243,29 +286,33 @@ def search_nodes(
 
     return nodes
 
-def get_all_tags() -> List[str]:
+def get_all_tags(db: Session) -> List[str]:
     """
     Retrieves a sorted list of all unique tags from all nodes.
+
+    Args:
+        db: The SQLAlchemy database session.
 
     Returns:
         A list of unique tag strings.
     """
-    nodes = state_manager.read_nodes()
+    nodes = db.query(NodeModel).all()
     all_tags = set()
 
     for node in nodes:
-        tags = node.get("properties", {}).get("tags", [])
+        tags = node.properties.get("tags", [])
         if tags:
             all_tags.update(tags)
 
     return sorted(list(all_tags))
 
 
-def delete_edge_by_nodes(source_id: str, target_id: str, label: str) -> bool:
+def delete_edge_by_nodes(db: Session, source_id: str, target_id: str, label: str) -> bool:
     """
     Deletes an edge based on its source, target, and label.
 
     Args:
+        db: The SQLAlchemy database session.
         source_id: The ID of the source node.
         target_id: The ID of the target node.
         label: The label of the edge.
@@ -273,39 +320,32 @@ def delete_edge_by_nodes(source_id: str, target_id: str, label: str) -> bool:
     Returns:
         True if the edge was found and deleted, False otherwise.
     """
-    edges = state_manager.read_edges()
-    edge_to_delete = next(
-        (
-            edge
-            for edge in edges
-            if edge["source_id"] == source_id
-            and edge["target_id"] == target_id
-            and edge["label"] == label
-        ),
-        None,
-    )
+    edge_to_delete = db.query(EdgeModel).filter_by(source_id=source_id, target_id=target_id, label=label).first()
 
     if edge_to_delete:
-        return state_manager.delete_edge(edge_to_delete["id"])
+        db.delete(edge_to_delete)
+        db.commit()
+        return True
     return False
 
 
-def rename_tag(old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
+def rename_tag(db: Session, old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
     """
     Renames a tag on all nodes that have it.
 
     Args:
+        db: The SQLAlchemy database session.
         old_tag: The tag to be renamed.
         new_tag: The new tag name.
 
     Returns:
         A list of nodes that were updated.
     """
-    nodes = state_manager.read_nodes()
+    nodes_to_update = db.query(NodeModel).filter(NodeModel.properties.cast(String).like(f'%"{old_tag}"%')).all()
     updated_nodes = []
 
-    for node in nodes:
-        properties = node.get("properties", {})
+    for node in nodes_to_update:
+        properties = node.properties
         tags = properties.get("tags", [])
 
         if old_tag in tags:
@@ -319,11 +359,14 @@ def rename_tag(old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
             updated_properties["tags"] = new_tags
 
             # Validate and save the updated node
-            PropertiesModel = PROPERTIES_MODELS[node["type"]]
+            PropertiesModel = PROPERTIES_MODELS[node.type]
             validated_properties = PropertiesModel(**updated_properties).model_dump(mode="json")
 
-            updated_node = state_manager.update_node_in_db(node["id"], validated_properties)
-            if updated_node:
-                updated_nodes.append(updated_node)
+            node.properties = validated_properties
+            db.add(node)
+            updated_nodes.append({"id": node.id, "type": node.type, "properties": validated_properties})
+
+    if updated_nodes:
+        db.commit()
 
     return updated_nodes

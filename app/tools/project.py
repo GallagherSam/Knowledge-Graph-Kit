@@ -1,8 +1,12 @@
 from typing import List, Optional, Dict, Any
+from sqlalchemy.orm import Session
 from app import crud
 from app.models import ProjectProperties
+from app.vector_store import VectorStore
 
 def create_project(
+    db: Session,
+    vector_store: VectorStore,
     name: str,
     description: str,
     status: str = 'active',
@@ -12,6 +16,8 @@ def create_project(
     Creates a new project node.
 
     Args:
+        db: The SQLAlchemy database session.
+        vector_store: The vector store instance.
         name: The name of the project.
         description: A description of the project.
         status: The current status of the project ('active' or 'archived').
@@ -27,9 +33,10 @@ def create_project(
         status=status,
         tags=tags or []
     )
-    return crud.create_node(node_type="Project", properties=properties.model_dump())
+    return crud.create_node(db=db, vector_store=vector_store, node_type="Project", properties=properties.model_dump())
 
 def get_projects(
+    db: Session,
     status: Optional[str] = None,
     tags: Optional[List[str]] = None
 ) -> List[Dict[str, Any]]:
@@ -37,6 +44,7 @@ def get_projects(
     Retrieves a list of projects, optionally filtering by status or tags.
 
     Args:
+        db: The SQLAlchemy database session.
         status: Filter projects by their status.
         tags: Filter projects that have any of the specified tags.
 
@@ -47,7 +55,7 @@ def get_projects(
     if status:
         filters['status'] = status
     
-    nodes = crud.get_nodes(node_type="Project", **filters)
+    nodes = crud.get_nodes(db=db, node_type="Project", **filters)
 
     if tags:
         tagged_nodes = []
@@ -60,6 +68,8 @@ def get_projects(
     return nodes
 
 def update_project(
+    db: Session,
+    vector_store: VectorStore,
     project_id: str,
     name: Optional[str] = None,
     description: Optional[str] = None,
@@ -70,6 +80,8 @@ def update_project(
     Updates the properties of an existing project.
 
     Args:
+        db: The SQLAlchemy database session.
+        vector_store: The vector store instance.
         project_id: The unique ID of the project to update.
         name: A new name for the project.
         description: A new description for the project.
@@ -91,4 +103,4 @@ def update_project(
     if not properties_to_update:
         raise ValueError("No properties provided to update.")
 
-    return crud.update_node(node_id=project_id, properties=properties_to_update)
+    return crud.update_node(db=db, vector_store=vector_store, node_id=project_id, properties=properties_to_update)

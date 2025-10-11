@@ -153,6 +153,3 @@ class VectorStore:
         except Exception as e:
             logger.error(f"Semantic search failed for query '{query}': {e}")
             return []
-
-# Create a singleton instance to be used by other modules
-vector_store_manager = VectorStore()

@@ -1,8 +1,12 @@
 from typing import List, Optional, Dict, Any
+from sqlalchemy.orm import Session
 from app import crud
 from app.models import TaskProperties
+from app.vector_store import VectorStore
 
 def create_task(
+    db: Session,
+    vector_store: VectorStore,
     description: str,
     status: str = 'todo',
     tags: Optional[List[str]] = None,
@@ -12,6 +16,8 @@ def create_task(
     Creates a new task with the given properties.
 
     Args:
+        db: The SQLAlchemy database session.
+        vector_store: The vector store instance.
         description: The main description of the task.
         status: The current status ('todo', 'in_progress', 'done', etc.).
         tags: A list of tags to categorize the task.
@@ -26,9 +32,10 @@ def create_task(
         tags=tags or [],
         due_date=due_date
     )
-    return crud.create_node(node_type="Task", properties=properties.model_dump())
+    return crud.create_node(db=db, vector_store=vector_store, node_type="Task", properties=properties.model_dump())
 
 def get_tasks(
+    db: Session,
     status: Optional[str] = None,
     tags: Optional[List[str]] = None
 ) -> List[Dict[str, Any]]:
@@ -36,6 +43,7 @@ def get_tasks(
     Retrieves a list of tasks, optionally filtering by status or tags.
 
     Args:
+        db: The SQLAlchemy database session.
         status: Filter tasks by their status.
         tags: Filter tasks that have any of the specified tags.
 
@@ -45,24 +53,22 @@ def get_tasks(
     filters = {}
     if status:
         filters['status'] = status
-    if tags:
-        # This is a simple implementation. For more complex tag filtering
-        # (e.g., all tags), the CRUD function would need to be updated.
-        all_nodes = crud.get_nodes(node_type="Task")
-        
-        # Manual filtering for tags
-        if tags:
-            tagged_nodes = []
-            for node in all_nodes:
-                node_tags = node.get("properties", {}).get("tags", [])
-                if any(t in node_tags for t in tags):
-                    tagged_nodes.append(node)
-            return tagged_nodes
-        return all_nodes
 
-    return crud.get_nodes(node_type="Task", **filters)
+    nodes = crud.get_nodes(db=db, node_type="Task", **filters)
+
+    if tags:
+        tagged_nodes = []
+        for node in nodes:
+            node_tags = node.get("properties", {}).get("tags", [])
+            if any(t in node_tags for t in tags):
+                tagged_nodes.append(node)
+        return tagged_nodes
+        
+    return nodes
 
 def update_task(
+    db: Session,
+    vector_store: VectorStore,
     task_id: str,
     description: Optional[str] = None,
     status: Optional[str] = None,
@@ -73,6 +79,8 @@ def update_task(
     Updates the properties of an existing task.
 
     Args:
+        db: The SQLAlchemy database session.
+        vector_store: The vector store instance.
         task_id: The unique ID of the task to update.
         description: A new description for the task.
         status: A new status for the task.
@@ -94,4 +102,4 @@ def update_task(
     if not properties_to_update:
         raise ValueError("No properties provided to update.")
 
-    return crud.update_node(node_id=task_id, properties=properties_to_update)
+    return crud.update_node(db=db, vector_store=vector_store, node_id=task_id, properties=properties_to_update)
