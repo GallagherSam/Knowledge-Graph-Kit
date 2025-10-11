@@ -1,5 +1,7 @@
 {
   "CHROMA_DATA_PATH": "chroma_data",
   "EMBEDDING_MODEL": "all-MiniLM-L6-v2",
-  "SQLALCHEMY_DATABASE_URL": "sqlite:///./graph.db"
+  "SQLALCHEMY_DATABASE_URL": "sqlite:///./graph.db",
+  "HOST": "0.0.0.0",
+  "PORT": 8000
 }

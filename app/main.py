@@ -395,7 +395,7 @@ def semantic_search(
 
 
 import argparse
-from app.config import load_config
+from app.config import load_config, config
 
 def main():
     """
@@ -413,8 +413,12 @@ def main():
     # Load the configuration
     load_config(args.config)
 
+    # Get host and port from config, with defaults
+    host = config.get("HOST", "0.0.0.0")
+    port = config.get("PORT", 8000)
+
     # Run the MCP server
-    mcp.run(transport='http', host='0.0.0.0', port=8000)
+    mcp.run(transport='http', host=host, port=port)
 
 if __name__ == "__main__":
     main()
