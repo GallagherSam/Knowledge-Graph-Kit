@@ -209,3 +209,35 @@ Here is a simple example of how to use the tools to manage a project.
 2. `get_related_nodes(node_id='project_123', label='part_of')` to efficiently find all tasks that are part of the project.
 
 By following this structure, you can effectively manage the user's knowledge graph.
+
+## 6. Configuration
+
+The application can be configured via a JSON file. By default, it looks for a `config.json` file in the root of the project. You can also specify a different configuration file when starting the application.
+
+### Usage
+
+To run the application with the default configuration, use the following command:
+
+```bash
+./start_mcp.sh
+```
+
+To use a custom configuration file, pass the path as an argument:
+
+```bash
+./start_mcp.sh /path/to/your/config.json
+```
+
+### Configuration Options
+
+The following options are available for configuration:
+
+| Key | Type | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `SQLALCHEMY_DATABASE_URL` | string | The connection string for the SQLite database. | `sqlite:///./graph.db` |
+| `CHROMA_DATA_PATH` | string | The directory to store ChromaDB data. | `chroma_data` |
+| `EMBEDDING_MODEL` | string | The name of the sentence-transformer model to use for embeddings. | `all-MiniLM-L6-v2` |
+| `HOST` | string | The host address for the MCP server. | `0.0.0.0` |
+| `PORT` | integer | The port for the MCP server. | `8000` |
+
+An example configuration file, `config.json`, is provided in the root of the repository.
