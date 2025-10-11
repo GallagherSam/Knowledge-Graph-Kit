@@ -13,15 +13,6 @@ from .config import config
 # Constants
 COLLECTION_NAME = "nodes"
 
-def get_chroma_data_path() -> str:
-    """Returns the Chroma data path from the config."""
-    return config["CHROMA_DATA_PATH"]
-
-def get_embedding_model() -> str:
-    """Returns the embedding model from the config."""
-    return config["EMBEDDING_MODEL"]
-
-
 class VectorStore:
     """
     Manages all interactions with the ChromaDB vector store.
@@ -33,9 +24,20 @@ class VectorStore:
         the embedding function, and creating or getting the collection.
         """
         try:
-            self.client = chromadb.PersistentClient(path=get_chroma_data_path(), settings=Settings(anonymized_telemetry=False))
+            if config.CHROMA_TYPE == 'hosted':
+                self.client = chromadb.HttpClient(
+                    host=config.CHROMA_HOST,
+                    port=config.CHROMA_PORT,
+                    settings=Settings(anonymized_telemetry=False)
+                )
+            else: # local
+                self.client = chromadb.PersistentClient(
+                    path=config.CHROMA_DATA_PATH,
+                    settings=Settings(anonymized_telemetry=False)
+                )
+
             self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-                model_name=get_embedding_model()
+                model_name=config.EMBEDDING_MODEL
             )
             self.collection = self.client.get_or_create_collection(
                 name=COLLECTION_NAME,

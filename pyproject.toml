@@ -9,6 +9,7 @@ dependencies = [
     "sqlalchemy",
     "sentence-transformers",
     "chromadb",
+    "psycopg2-binary",
 ]
 
 [project.optional-dependencies]

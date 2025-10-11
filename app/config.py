@@ -1,39 +1,39 @@
-import json
-from typing import Dict, Any
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal, Optional
 
-DEFAULT_CONFIG = {
-    "SQLALCHEMY_DATABASE_URL": "sqlite:///./graph.db",
-    "CHROMA_DATA_PATH": "chroma_data",
-    "EMBEDDING_MODEL": "all-MiniLM-L6-v2",
-    "HOST": "0.0.0.0",
-    "PORT": 8000,
-}
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
-# Global variable to hold the configuration
-config: Dict[str, Any] = DEFAULT_CONFIG.copy()
+    DB_TYPE: Literal['sqlite', 'postgres'] = 'sqlite'
+    SQLALCHEMY_DATABASE_URL: Optional[str] = "sqlite:///./graph.db"
+    POSTGRES_USER: Optional[str] = None
+    POSTGRES_PASSWORD: Optional[str] = None
+    POSTGRES_SERVER: Optional[str] = None
+    POSTGRES_PORT: Optional[int] = 5432
+    POSTGRES_DB: Optional[str] = None
+
+    CHROMA_TYPE: Literal['local', 'hosted'] = 'local'
+    CHROMA_DATA_PATH: Optional[str] = "chroma_data"
+    CHROMA_HOST: Optional[str] = None
+    CHROMA_PORT: Optional[int] = None
+
+    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+
+    def get_database_url(self) -> str:
+        if self.DB_TYPE == 'postgres':
+            return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return self.SQLALCHEMY_DATABASE_URL
+
+config = Settings()
 
 def load_config(path: str):
     """
-    Loads the configuration from a JSON file, populating the global config object.
-    It starts with default values and overrides them with any values from the file.
+    Loads the configuration from a .env file, populating the global config object.
 
     Args:
         path: The path to the configuration file.
     """
     global config
-    
-    # Start with a copy of the default configuration
-    temp_config = DEFAULT_CONFIG.copy()
-
-    try:
-        with open(path, 'r') as f:
-            file_config = json.load(f)
-            temp_config.update(file_config)
-    except FileNotFoundError:
-        print(f"Warning: Configuration file not found at {path}. Using default values.")
-    except json.JSONDecodeError:
-        print(f"Error: Could not decode JSON from {path}. Please check the file format.")
-        raise
-    
-    # Update the global config object
-    config.update(temp_config)
+    config = Settings(_env_file=path)

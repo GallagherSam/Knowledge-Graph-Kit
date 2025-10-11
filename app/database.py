@@ -5,10 +5,16 @@ from .config import config
 
 def get_database_url() -> str:
     """Returns the database URL from the config."""
-    return config["SQLALCHEMY_DATABASE_URL"]
+    return config.get_database_url()
+
+# For SQLite, we need to ensure that the same thread is used for all operations.
+# For other databases, we don't need this argument.
+engine_args = {}
+if config.DB_TYPE == 'sqlite':
+    engine_args["connect_args"] = {"check_same_thread": False}
 
 engine = create_engine(
-    get_database_url(), connect_args={"check_same_thread": False}
+    get_database_url(), **engine_args
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

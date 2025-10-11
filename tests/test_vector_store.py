@@ -1,11 +1,44 @@
 import pytest
-from unittest.mock import patch, MagicMock
-
+from unittest.mock import patch, MagicMock, ANY
 from app.vector_store import VectorStore
-from app.crud import create_node, get_nodes, delete_node
-from app.models import NoteProperties
+from app.config import Settings
 
-@pytest.fixture(scope="module")
+@patch('chromadb.PersistentClient')
+def test_vector_store_initialization_local(mock_persistent_client):
+    """
+    Tests that the VectorStore initializes with a PersistentClient for local ChromaDB.
+    """
+    mock_collection = MagicMock()
+    mock_persistent_client.return_value.get_or_create_collection.return_value = mock_collection
+    config = Settings(CHROMA_TYPE='local', CHROMA_DATA_PATH='/tmp/chroma')
+
+    with patch('app.vector_store.config', config):
+        vs = VectorStore()
+        mock_persistent_client.assert_called_once_with(
+            path='/tmp/chroma',
+            settings=ANY
+        )
+        assert vs.collection is not None
+
+@patch('chromadb.HttpClient')
+def test_vector_store_initialization_hosted(mock_http_client):
+    """
+    Tests that the VectorStore initializes with an HttpClient for hosted ChromaDB.
+    """
+    mock_collection = MagicMock()
+    mock_http_client.return_value.get_or_create_collection.return_value = mock_collection
+    config = Settings(CHROMA_TYPE='hosted', CHROMA_HOST='localhost', CHROMA_PORT=8008)
+
+    with patch('app.vector_store.config', config):
+        vs = VectorStore()
+        mock_http_client.assert_called_once_with(
+            host='localhost',
+            port=8008,
+            settings=ANY
+        )
+        assert vs.collection is not None
+
+@pytest.fixture
 def vector_store_manager_instance():
     """
     Provides a singleton instance of the VectorStore for testing.
