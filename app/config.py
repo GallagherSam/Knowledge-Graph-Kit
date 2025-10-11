@@ -10,7 +10,7 @@ DEFAULT_CONFIG = {
 }
 
 # Global variable to hold the configuration
-config: Dict[str, Any] = {}
+config: Dict[str, Any] = DEFAULT_CONFIG.copy()
 
 def load_config(path: str):
     """
