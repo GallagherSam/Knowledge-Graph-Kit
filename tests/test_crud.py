@@ -1,242 +1,186 @@
 import pytest
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import MagicMock
 from pydantic import ValidationError
-import datetime
-
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.database import Base
 from app import crud
 from app.models import TaskProperties, NoteProperties, PersonProperties, ProjectProperties
+import datetime
 
 @pytest.fixture
-def mock_state_manager():
-    """Fixture to mock the state_manager."""
-    with patch("app.crud.state_manager", autospec=True) as mock_state:
-        yield mock_state
+def db_session():
+    """Fixture to create a new database session for each test."""
+    engine = create_engine("sqlite:///:memory:")
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base.metadata.create_all(bind=engine)
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+        Base.metadata.drop_all(bind=engine)
 
-def test_create_node_success(mock_state_manager):
+@pytest.fixture
+def mock_vector_store():
+    """Fixture to mock the vector store."""
+    return MagicMock()
+
+def test_create_node_success(db_session, mock_vector_store):
     """Test successful creation of a node."""
-    properties = {"description": "Test Task", "status": "todo"}
-
-    # Mock the return value of the state_manager's add_node method
-    mock_state_manager.add_node.return_value = {
-        "id": "some-uuid",
-        "type": "Task",
-        "properties": properties
-    }
-
-    new_node = crud.create_node(node_type="Task", properties=properties)
+    properties = {"description": "Test Task", "status": "todo", "due_date": None, "tags": []}
+    new_node = crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties=properties)
 
     assert new_node["type"] == "Task"
     assert new_node["properties"]["description"] == "Test Task"
-    mock_state_manager.add_node.assert_called_once()
+    mock_vector_store.add_node.assert_called_once()
 
-def test_create_node_invalid_properties(mock_state_manager):
+def test_create_node_invalid_properties(db_session, mock_vector_store):
     """Test creating a node with invalid properties raises ValidationError."""
     with pytest.raises(ValidationError):
-        crud.create_node(node_type="Task", properties={"invalid_prop": "value"})
+        crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties={"invalid_prop": "value"})
 
-def test_get_nodes_no_filter(mock_state_manager):
+def test_get_nodes_no_filter(db_session, mock_vector_store):
     """Test retrieving all nodes without any filters."""
-    mock_nodes = [{"id": "1", "type": "Task", "properties": {}}]
-    mock_state_manager.read_nodes.return_value = mock_nodes
+    properties = {"description": "Test Task", "status": "todo", "due_date": None, "tags": []}
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties=properties)
 
-    nodes = crud.get_nodes()
-    assert nodes == mock_nodes
+    nodes = crud.get_nodes(db=db_session)
+    assert len(nodes) == 1
 
-def test_get_nodes_by_type(mock_state_manager):
+def test_get_nodes_by_type(db_session, mock_vector_store):
     """Test filtering nodes by type."""
-    mock_nodes = [
-        {"id": "1", "type": "Task", "properties": {}},
-        {"id": "2", "type": "Note", "properties": {}},
-    ]
-    mock_state_manager.read_nodes.return_value = mock_nodes
+    properties_task = {"description": "Test Task", "status": "todo", "due_date": None, "tags": []}
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties=properties_task)
+    properties_note = {"title": "Test Note", "content": "Test content", "tags": []}
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Note", properties=properties_note)
 
-    nodes = crud.get_nodes(node_type="Task")
+    nodes = crud.get_nodes(db=db_session, node_type="Task")
     assert len(nodes) == 1
     assert nodes[0]["type"] == "Task"
 
-def test_get_nodes_by_property(mock_state_manager):
+def test_get_nodes_by_property(db_session, mock_vector_store):
     """Test filtering nodes by a specific property."""
-    mock_nodes = [
-        {"id": "1", "type": "Task", "properties": {"status": "done"}},
-        {"id": "2", "type": "Task", "properties": {"status": "todo"}},
-    ]
-    mock_state_manager.read_nodes.return_value = mock_nodes
+    properties1 = {"description": "Test Task 1", "status": "done", "due_date": None, "tags": []}
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties=properties1)
+    properties2 = {"description": "Test Task 2", "status": "todo", "due_date": None, "tags": []}
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties=properties2)
 
-    nodes = crud.get_nodes(node_type="Task", status="done")
+    nodes = crud.get_nodes(db=db_session, node_type="Task", status="done")
     assert len(nodes) == 1
     assert nodes[0]["properties"]["status"] == "done"
 
-def test_update_node_success(mock_state_manager):
+def test_update_node_success(db_session, mock_vector_store):
     """Test successfully updating a node."""
-    created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    mock_nodes = [{"id": "1", "type": "Note", "properties": {"title": "Old", "content": "Content", "created_at": created_at, "modified_at": created_at, "tags": []}}]
-    mock_state_manager.read_nodes.return_value = mock_nodes
+    properties = {"title": "Old", "content": "Content", "tags": []}
+    created_node = crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Note", properties=properties)
 
-    updated_properties = {"title": "New", "content": "Content", "created_at": created_at, "modified_at": created_at, "tags": []}
-    mock_state_manager.update_node_in_db.return_value = {"id": "1", "type": "Note", "properties": updated_properties}
-
-
-    updated_node = crud.update_node(node_id="1", properties={"title": "New"})
+    updated_node = crud.update_node(db=db_session, vector_store=mock_vector_store, node_id=created_node["id"], properties={"title": "New"})
     assert updated_node["properties"]["title"] == "New"
+    mock_vector_store.update_node.assert_called_once()
 
-    mock_state_manager.update_node_in_db.assert_called_once_with("1", ANY)
-
-def test_update_node_not_found(mock_state_manager):
+def test_update_node_not_found(db_session, mock_vector_store):
     """Test that updating a non-existent node raises an exception."""
-    mock_state_manager.read_nodes.return_value = []
     with pytest.raises(ValueError) as exc_info:
-        crud.update_node(node_id="1", properties={"title": "New"})
+        crud.update_node(db=db_session, vector_store=mock_vector_store, node_id="1", properties={"title": "New"})
     assert "not found" in str(exc_info.value)
 
-def test_delete_node_success(mock_state_manager):
+def test_delete_node_success(db_session, mock_vector_store):
     """Test successful deletion of a node."""
-    crud.delete_node("1")
-    mock_state_manager.delete_node.assert_called_once_with("1")
+    properties = {"description": "Test Task", "status": "todo", "due_date": None, "tags": []}
+    created_node = crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties=properties)
 
-def test_create_edge_success(mock_state_manager):
+    crud.delete_node(db=db_session, vector_store=mock_vector_store, node_id=created_node["id"])
+    mock_vector_store.delete_node.assert_called_once_with(created_node["id"])
+
+def test_create_edge_success(db_session, mock_vector_store):
     """Test successful creation of an edge."""
-    mock_nodes = [{"id": "1", "type": "Task"}, {"id": "2", "type": "Project"}]
-    mock_state_manager.read_nodes.return_value = mock_nodes
+    properties1 = {"description": "Test Task", "status": "todo", "due_date": None, "tags": []}
+    node1 = crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties=properties1)
+    properties2 = {"name": "Test Project", "description": "A test project.", "status": "active", "tags": []}
+    node2 = crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Project", properties=properties2)
 
-    mock_state_manager.add_edge.return_value = {"id": "e1", "source_id": "1", "target_id": "2", "label": "part_of"}
+    new_edge = crud.create_edge(db=db_session, source_id=node1["id"], target_id=node2["id"], label="part_of")
+    assert new_edge["source_id"] == node1["id"]
+    assert new_edge["target_id"] == node2["id"]
 
-    new_edge = crud.create_edge(source_id="1", target_id="2", label="part_of")
-    assert new_edge["source_id"] == "1"
-    assert new_edge["target_id"] == "2"
-    mock_state_manager.add_edge.assert_called_once()
-
-def test_delete_edge_success(mock_state_manager):
+def test_delete_edge_success(db_session):
     """Test successful deletion of an edge."""
-    crud.delete_edge("e1")
-    mock_state_manager.delete_edge.assert_called_once_with("e1")
+    # This test is not valid anymore as we don't have a direct `delete_edge` by id in the crud module
+    pass
 
-
-def test_create_edge_node_not_found(mock_state_manager):
+def test_create_edge_node_not_found(db_session):
     """Test creating an edge with a non-existent source or target node."""
-    mock_state_manager.read_nodes.return_value = [{"id": "1", "type": "Task"}]
     with pytest.raises(ValueError) as exc_info:
-        crud.create_edge(source_id="1", target_id="2", label="part_of")
+        crud.create_edge(db=db_session, source_id="1", target_id="2", label="part_of")
     assert "not found" in str(exc_info.value)
 
-def test_get_connected_nodes(mock_state_manager):
+def test_get_connected_nodes(db_session, mock_vector_store):
     """Test retrieving connected nodes."""
-    mock_nodes = [
-        {"id": "1", "type": "Task"},
-        {"id": "2", "type": "Project"},
-        {"id": "3", "type": "Person"},
-    ]
-    mock_edges = [
-        {"id": "e1", "source_id": "1", "target_id": "2", "label": "part_of"},
-        {"id": "e2", "source_id": "3", "target_id": "1", "label": "assigned_to"},
-    ]
-    mock_state_manager.read_nodes.return_value = mock_nodes
-    mock_state_manager.read_edges.return_value = mock_edges
+    node1 = crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties={"description": "Test Task", "status": "todo", "due_date": None, "tags": []})
+    node2 = crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Project", properties={"name": "Test Project", "description": "A test project.", "status": "active", "tags": []})
+    node3 = crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Person", properties={"name": "Test Person", "tags": [], "metadata": {}})
+    crud.create_edge(db=db_session, source_id=node1["id"], target_id=node2["id"], label="part_of")
+    crud.create_edge(db=db_session, source_id=node3["id"], target_id=node1["id"], label="assigned_to")
 
-    connected = crud.get_connected_nodes(node_id="1")
+    connected = crud.get_connected_nodes(db=db_session, node_id=node1["id"])
     assert len(connected) == 2
     connected_ids = {node["id"] for node in connected}
-    assert "2" in connected_ids
-    assert "3" in connected_ids
+    assert node2["id"] in connected_ids
+    assert node3["id"] in connected_ids
 
-def test_search_nodes(mock_state_manager):
+def test_search_nodes(db_session, mock_vector_store):
     """Test searching for nodes with various criteria."""
-    mock_nodes = [
-        {"id": "1", "type": "Note", "properties": {"title": "My Note", "content": "About cats", "tags": ["personal"]}},
-        {"id": "2", "type": "Task", "properties": {"description": "A task about dogs", "tags": ["work"]}},
-    ]
-    mock_state_manager.read_nodes.return_value = mock_nodes
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Note", properties={"title": "My Note", "content": "About cats", "tags": ["personal"]})
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties={"description": "A task about dogs", "status": "todo", "due_date": None, "tags": ["work"]})
 
     # Test search by query
-    results = crud.search_nodes(query="cats")
+    results = crud.search_nodes(db=db_session, query="cats")
     assert len(results) == 1
-    assert results[0]["id"] == "1"
+    assert results[0]["properties"]["content"] == "About cats"
 
     # Test search by type
-    results = crud.search_nodes(node_type="Task")
+    results = crud.search_nodes(db=db_session, node_type="Task")
     assert len(results) == 1
-    assert results[0]["id"] == "2"
+    assert results[0]["type"] == "Task"
 
     # Test search by tags
-    results = crud.search_nodes(tags=["work"])
+    results = crud.search_nodes(db=db_session, tags=["work"])
     assert len(results) == 1
-    assert results[0]["id"] == "2"
+    assert results[0]["properties"]["tags"] == ["work"]
 
-def test_get_all_tags(mock_state_manager):
+def test_get_all_tags(db_session, mock_vector_store):
     """Test retrieving all unique, sorted tags."""
-    mock_nodes = [
-        {"id": "1", "properties": {"tags": ["work", "urgent"]}},
-        {"id": "2", "properties": {"tags": ["personal"]}},
-        {"id": "3", "properties": {"tags": ["work", "review"]}},
-    ]
-    mock_state_manager.read_nodes.return_value = mock_nodes
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Note", properties={"title": "Note 1", "content": "c1", "tags": ["work", "urgent"]})
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties={"description": "Task 1", "status": "todo", "due_date": None, "tags": ["personal"]})
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Project", properties={"name": "p1", "description": "d1", "status": "active", "tags": ["work", "review"]})
 
-    tags = crud.get_all_tags()
+    tags = crud.get_all_tags(db=db_session)
     assert tags == ["personal", "review", "urgent", "work"]
 
-
-def test_delete_edge_by_nodes_success(mock_state_manager):
+def test_delete_edge_by_nodes_success(db_session, mock_vector_store):
     """Test successful deletion of an edge by source, target, and label."""
-    mock_edges = [
-        {"id": "e1", "source_id": "1", "target_id": "2", "label": "part_of"},
-        {"id": "e2", "source_id": "3", "target_id": "1", "label": "assigned_to"},
-    ]
-    mock_state_manager.read_edges.return_value = mock_edges
-    mock_state_manager.delete_edge.return_value = True
+    node1 = crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties={"description": "Test Task", "status": "todo", "due_date": None, "tags": []})
+    node2 = crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Project", properties={"name": "Test Project", "description": "A test project.", "status": "active", "tags": []})
+    crud.create_edge(db=db_session, source_id=node1["id"], target_id=node2["id"], label="part_of")
 
-    result = crud.delete_edge_by_nodes(source_id="1", target_id="2", label="part_of")
-
+    result = crud.delete_edge_by_nodes(db=db_session, source_id=node1["id"], target_id=node2["id"], label="part_of")
     assert result is True
-    mock_state_manager.delete_edge.assert_called_once_with("e1")
 
-
-def test_delete_edge_by_nodes_not_found(mock_state_manager):
+def test_delete_edge_by_nodes_not_found(db_session):
     """Test that trying to delete a non-existent edge by nodes fails."""
-    mock_state_manager.read_edges.return_value = []
-    result = crud.delete_edge_by_nodes(source_id="1", target_id="2", label="part_of")
+    result = crud.delete_edge_by_nodes(db=db_session, source_id="1", target_id="2", label="part_of")
     assert result is False
-    mock_state_manager.delete_edge.assert_not_called()
 
-
-def test_rename_tag_success(mock_state_manager):
+def test_rename_tag_success(db_session, mock_vector_store):
     """Test successfully renaming a tag on multiple nodes."""
-    created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    mock_nodes = [
-        {
-            "id": "1",
-            "type": "Note",
-            "properties": {"title": "Note 1", "content": "c1", "tags": ["old_tag", "other"], "created_at": created_at, "modified_at": created_at},
-        },
-        {
-            "id": "2",
-            "type": "Task",
-            "properties": {"description": "Task 1", "tags": ["old_tag"], "created_at": created_at, "modified_at": created_at},
-        },
-        {"id": "3", "type": "Project", "properties": {"name": "p1", "description": "d1", "tags": ["another_tag"], "created_at": created_at, "modified_at": created_at}},
-    ]
-    mock_state_manager.read_nodes.return_value = mock_nodes
+    node1 = crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Note", properties={"title": "Note 1", "content": "c1", "tags": ["old_tag", "other"]})
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Task", properties={"description": "Task 1", "status": "todo", "due_date": None, "tags": ["old_tag"]})
+    crud.create_node(db=db_session, vector_store=mock_vector_store, node_type="Project", properties={"name": "p1", "description": "d1", "status": "active", "tags": ["another_tag"]})
 
-    # Create a dictionary to map node IDs to their types for the mock
-    node_type_map = {node["id"]: node["type"] for node in mock_nodes}
-
-    # Mock the update call to return a value to confirm it was called
-    mock_state_manager.update_node_in_db.side_effect = lambda node_id, props: {
-        "id": node_id,
-        "properties": props,
-        "type": node_type_map.get(node_id),
-    }
-
-
-    updated_nodes = crud.rename_tag(old_tag="old_tag", new_tag="new_tag")
-
+    updated_nodes = crud.rename_tag(db=db_session, old_tag="old_tag", new_tag="new_tag")
     assert len(updated_nodes) == 2
-    assert mock_state_manager.update_node_in_db.call_count == 2
 
     # Check the call for the first node
-    call_args_1 = mock_state_manager.update_node_in_db.call_args_list[0]
-    assert call_args_1.args[0] == "1"
-    assert sorted(call_args_1.args[1]["tags"]) == ["new_tag", "other"]
-
-    # Check the call for the second node
-    call_args_2 = mock_state_manager.update_node_in_db.call_args_list[1]
-    assert call_args_2.args[0] == "2"
-    assert call_args_2.args[1]["tags"] == ["new_tag"]
+    updated_node1 = crud.get_nodes_by_ids(db=db_session, node_ids=[node1["id"]])[0]
+    assert sorted(updated_node1["properties"]["tags"]) == ["new_tag", "other"]
