@@ -15,11 +15,11 @@ COLLECTION_NAME = "nodes"
 
 def get_chroma_data_path() -> str:
     """Returns the Chroma data path from the config."""
-    return config.get("CHROMA_DATA_PATH", "chroma_data")
+    return config["CHROMA_DATA_PATH"]
 
 def get_embedding_model() -> str:
     """Returns the embedding model from the config."""
-    return config.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+    return config["EMBEDDING_MODEL"]
 
 
 class VectorStore:

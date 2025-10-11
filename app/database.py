@@ -5,7 +5,7 @@ from .config import config
 
 def get_database_url() -> str:
     """Returns the database URL from the config."""
-    return config.get("SQLALCHEMY_DATABASE_URL", "sqlite:///./graph.db")
+    return config["SQLALCHEMY_DATABASE_URL"]
 
 engine = create_engine(
     get_database_url(), connect_args={"check_same_thread": False}

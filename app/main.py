@@ -412,9 +412,9 @@ def main():
     # Load the configuration
     load_config(args.config)
 
-    # Get host and port from config, with defaults
-    host = config.get("HOST", "0.0.0.0")
-    port = config.get("PORT", 8000)
+    # Get host and port from config
+    host = config["HOST"]
+    port = config["PORT"]
 
     # Run the MCP server
     mcp.run(transport='http', host=host, port=port)
