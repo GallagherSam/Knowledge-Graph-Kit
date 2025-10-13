@@ -27,8 +27,10 @@ def test_create_edge(shared_instance, mock_crud, mock_db_session):
 
 def test_get_related_nodes(shared_instance, mock_crud, mock_db_session):
     """Test that get_related_nodes calls the corresponding crud function."""
-    shared_instance.get_related_nodes(node_id="1", label="friends")
-    mock_crud.get_connected_nodes.assert_called_once_with(db=mock_db_session, node_id="1", label="friends")
+    shared_instance.get_related_nodes(node_id="1", label="friends", depth=2)
+    mock_crud.get_connected_nodes.assert_called_once_with(
+        db=mock_db_session, node_id="1", label="friends", depth=2
+    )
 
 def test_search_nodes(shared_instance, mock_crud, mock_db_session):
     """Test that search_nodes calls the corresponding crud function."""
