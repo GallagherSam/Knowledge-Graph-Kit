@@ -1,85 +1,136 @@
 from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
 from app import crud
 from app.models import AnyNode
-from app.vector_store import VectorStore
 
-def create_edge(db: Session, source_id: str, label: str, target_id: str) -> dict:
-    """
-    Creates a relationship (edge) between two existing nodes.
+class Shared:
+    def __init__(self, mcp_instance, provider):
+        self.provider = provider
+        mcp_instance.tool(self.create_edge)
+        mcp_instance.tool(self.get_related_nodes)
+        mcp_instance.tool(self.search_nodes)
+        mcp_instance.tool(self.get_all_tags)
+        mcp_instance.tool(self.delete_node)
+        mcp_instance.tool(self.delete_edge)
+        mcp_instance.tool(self.rename_tag)
+        mcp_instance.tool(self.semantic_search)
 
-    Args:
-        db: The SQLAlchemy database session.
-        source_id: The unique ID of the starting node.
-        label: The description of the relationship (e.g., 'part_of', 'mentions').
-        target_id: The unique ID of the ending node.
+    def create_edge(self, source_id: str, label: str, target_id: str) -> dict:
+        """
+        Creates a relationship (edge) between two existing nodes.
 
-    Returns:
-        A dictionary representing the newly created edge.
-    """
-    return crud.create_edge(db=db, source_id=source_id, label=label, target_id=target_id)
+        Args:
+            source_id: The unique ID of the starting node.
+            label: The description of the relationship (e.g., 'part_of', 'mentions').
+            target_id: The unique ID of the ending node.
 
-def get_related_nodes(db: Session, node_id: str, label: Optional[str] = None) -> List[Dict[str, Any]]:
-    """
-    Service function to find all nodes connected to a specific node.
-    """
-    return crud.get_connected_nodes(db=db, node_id=node_id, label=label)
+        Returns:
+            A dictionary representing the newly created edge.
+        """
+        with self.provider.get_db() as db:
+            return crud.create_edge(db=db, source_id=source_id, label=label, target_id=target_id)
 
-def search_nodes(
-    db: Session,
-    query: Optional[str] = None,
-    node_type: Optional[AnyNode] = None,
-    tags: Optional[List[str]] = None,
-) -> List[Dict[str, Any]]:
-    """
-    Service function to search for nodes.
-    """
-    return crud.search_nodes(db=db, query=query, node_type=node_type, tags=tags)
+    def get_related_nodes(self, node_id: str, label: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Finds all nodes connected to a given node via an edge.
 
+        Args:
+            node_id: The unique ID of the node to start from.
+            label: An optional relationship label to filter by.
 
-def get_all_tags(db: Session) -> List[str]:
-    """
-    Service function to retrieve all unique tags.
-    """
-    return crud.get_all_tags(db=db)
+        Returns:
+            A list of connected node dictionaries.
+        """
+        with self.provider.get_db() as db:
+            return crud.get_connected_nodes(db=db, node_id=node_id, label=label)
 
+    def search_nodes(
+        self,
+        query: Optional[str] = None,
+        node_type: Optional[AnyNode] = None,
+        tags: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Searches for nodes based on a query string, type, and tags.
 
-def delete_node(db: Session, vector_store: VectorStore, node_id: str) -> bool:
-    """
-    Service function to delete a node by its ID.
-    """
-    return crud.delete_node(db=db, vector_store=vector_store, node_id=node_id)
+        Args:
+            query: A string to search for in the relevant fields of the nodes.
+            node_type: The type of nodes to filter by (e.g., "Task", "Note").
+            tags: A list of tags to filter by.
 
+        Returns:
+            A list of nodes that match the search criteria.
+        """
+        with self.provider.get_db() as db:
+            return crud.search_nodes(db=db, query=query, node_type=node_type, tags=tags)
 
-def delete_edge(db: Session, source_id: str, target_id: str, label: str) -> bool:
-    """
-    Service function to delete an edge by its source, target, and label.
-    """
-    return crud.delete_edge_by_nodes(
-        db=db, source_id=source_id, target_id=target_id, label=label
-    )
+    def get_all_tags(self) -> List[str]:
+        """
+        Retrieves a sorted list of all unique tags from all nodes.
 
+        Returns:
+            A list of unique tag strings.
+        """
+        with self.provider.get_db() as db:
+            return crud.get_all_tags(db=db)
 
-def rename_tag(db: Session, old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
-    """
-    Service function to rename a tag across all nodes.
-    """
-    return crud.rename_tag(db=db, old_tag=old_tag, new_tag=new_tag)
+    def delete_node(self, node_id: str) -> bool:
+        """
+        Deletes a node by its unique ID.
 
+        Args:
+            node_id: The ID of the node to delete.
 
-def semantic_search(
-    db: Session,
-    vector_store: VectorStore,
-    query: str,
-    node_type: Optional[AnyNode] = None,
-) -> List[Dict[str, Any]]:
-    """
-    Service function to perform a semantic search for nodes.
-    """
-    node_ids = vector_store.semantic_search(query=query, node_type=node_type)
+        Returns:
+            True if the node was successfully deleted, False otherwise.
+        """
+        with self.provider.get_db() as db:
+            return crud.delete_node(db=db, vector_store=self.provider.vector_store, node_id=node_id)
 
-    if not node_ids:
-        return []
+    def delete_edge(self, source_id: str, target_id: str, label: str) -> bool:
+        """
+        Deletes an edge between two nodes.
 
-    # Retrieve the full node data for the given IDs
-    return crud.get_nodes_by_ids(db=db, node_ids=node_ids)
+        Args:
+            source_id: The ID of the source node.
+            target_id: The ID of the target node.
+            label: The label of the edge to delete.
+
+        Returns:
+            True if the edge was successfully deleted, False otherwise.
+        """
+        with self.provider.get_db() as db:
+            return crud.delete_edge_by_nodes(db=db, source_id=source_id, target_id=target_id, label=label)
+
+    def rename_tag(self, old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
+        """
+        Renames a specific tag on all nodes where it is present.
+
+        Args:
+            old_tag: The current name of the tag.
+            new_tag: The new name for the tag.
+
+        Returns:
+            A list of the node objects that were updated.
+        """
+        with self.provider.get_db() as db:
+            return crud.rename_tag(db=db, old_tag=old_tag, new_tag=new_tag)
+
+    def semantic_search(
+        self,
+        query: str,
+        node_type: Optional[AnyNode] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Performs a semantic search for nodes based on a query string.
+
+        Args:
+            query: The query string to search for.
+            node_type: The type of nodes to filter by (e.g., "Task", "Note").
+
+        Returns:
+            A list of nodes that are semantically similar to the query.
+        """
+        with self.provider.get_db() as db:
+            vector_store = self.provider.vector_store
+            node_ids = vector_store.semantic_search(query=query, node_type=node_type)
+            return crud.get_nodes_by_ids(db=db, node_ids=node_ids)

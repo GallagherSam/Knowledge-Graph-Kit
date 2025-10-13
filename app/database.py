@@ -1,6 +1,9 @@
+from __future__ import annotations
+from typing import Annotated
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
+from pydantic import PlainSerializer
 from .config import config
 
 def get_database_url() -> str:

@@ -1,106 +1,106 @@
-from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
+from typing import List, Optional, Dict, Any, Literal
 from app import crud
 from app.models import ProjectProperties
-from app.vector_store import VectorStore
 
-def create_project(
-    db: Session,
-    vector_store: VectorStore,
-    name: str,
-    description: str,
-    status: str = 'active',
-    tags: Optional[List[str]] = None
-) -> Dict[str, Any]:
-    """
-    Creates a new project node.
+class Projects:
+    def __init__(self, mcp_instance, provider):
+        self.provider = provider
+        mcp_instance.tool(self.create_project)
+        mcp_instance.tool(self.get_projects)
+        mcp_instance.tool(self.update_project)
 
-    Args:
-        db: The SQLAlchemy database session.
-        vector_store: The vector store instance.
-        name: The name of the project.
-        description: A description of the project.
-        status: The current status of the project ('active' or 'archived').
-        tags: A list of tags to categorize the project.
+    def create_project(
+        self,
+        name: str,
+        description: str,
+        status: Literal['active', 'archived'] = 'active',
+        tags: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Creates a new project node.
 
-    Returns:
-        A dictionary representing the newly created project node.
-    """
+        Args:
+            name: The name of the project.
+            description: A description of the project.
+            status: The current status of the project ('active' or 'archived').
+            tags: A list of tags to categorize the project.
 
-    properties = ProjectProperties(
-        name=name,
-        description=description,
-        status=status,
-        tags=tags or []
-    )
-    return crud.create_node(db=db, vector_store=vector_store, node_type="Project", properties=properties.model_dump())
+        Returns:
+            A dictionary representing the newly created project node.
+        """
+        with self.provider.get_db() as db:
+            properties = ProjectProperties(
+                name=name,
+                description=description,
+                status=status,
+                tags=tags or []
+            )
+            return crud.create_node(
+                db=db,
+                vector_store=self.provider.vector_store,
+                node_type="Project",
+                properties=properties.model_dump()
+            )
 
-def get_projects(
-    db: Session,
-    status: Optional[str] = None,
-    tags: Optional[List[str]] = None
-) -> List[Dict[str, Any]]:
-    """
-    Retrieves a list of projects, optionally filtering by status or tags.
+    def get_projects(
+        self,
+        status: Optional[Literal['active', 'archived']] = None,
+        tags: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieves a list of projects, optionally filtering by status or tags.
 
-    Args:
-        db: The SQLAlchemy database session.
-        status: Filter projects by their status.
-        tags: Filter projects that have any of the specified tags.
+        Args:
+            status: Filter projects by their status.
+            tags: Filter projects that have any of the specified tags.
 
-    Returns:
-        A list of project nodes that match the filter criteria.
-    """
-    filters = {}
-    if status:
-        filters['status'] = status
-    
-    nodes = crud.get_nodes(db=db, node_type="Project", **filters)
+        Returns:
+            A list of project nodes that match the filter criteria.
+        """
+        with self.provider.get_db() as db:
+            if status:
+                return crud.get_nodes(db=db, node_type="Project", properties={"status": status})
+            if tags:
+                return crud.get_nodes(db=db, node_type="Project", tags=tags)
+            return crud.get_nodes(db=db, node_type="Project")
 
-    if tags:
-        tagged_nodes = []
-        for node in nodes:
-            node_tags = node.get("properties", {}).get("tags", [])
-            if any(t in node_tags for t in tags):
-                tagged_nodes.append(node)
-        return tagged_nodes
-        
-    return nodes
+    def update_project(
+        self,
+        project_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        status: Optional[Literal['active', 'archived']] = None,
+        tags: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Updates the properties of an existing project.
 
-def update_project(
-    db: Session,
-    vector_store: VectorStore,
-    project_id: str,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    status: Optional[str] = None,
-    tags: Optional[List[str]] = None
-) -> Dict[str, Any]:
-    """
-    Updates the properties of an existing project.
+        Args:
+            project_id: The unique ID of the project to update.
+            name: A new name for the project.
+            description: A new description for the project.
+            status: A new status for the project.
+            tags: A new list of tags for the project.
 
-    Args:
-        db: The SQLAlchemy database session.
-        vector_store: The vector store instance.
-        project_id: The unique ID of the project to update.
-        name: A new name for the project.
-        description: A new description for the project.
-        status: A new status for the project.
-        tags: A new list of tags for the project.
+        Returns:
+            The updated project node.
+        """
+        with self.provider.get_db() as db:
+            properties_to_update = {
+                k: v for k, v in {
+                    "name": name,
+                    "description": description,
+                    "status": status,
+                    "tags": tags,
+                }.items() if v is not None
+            }
 
-    Returns:
-        The updated project node.
-    """
-    properties_to_update = {
-        k: v for k, v in {
-            "name": name,
-            "description": description,
-            "status": status,
-            "tags": tags
-        }.items() if v is not None
-    }
+            if not properties_to_update:
+                raise ValueError("No properties provided to update.")
 
-    if not properties_to_update:
-        raise ValueError("No properties provided to update.")
-
-    return crud.update_node(db=db, vector_store=vector_store, node_id=project_id, properties=properties_to_update)
+            return crud.update_node(
+                db=db,
+                vector_store=self.provider.vector_store,
+                node_id=project_id,
+                properties=properties_to_update
+            )

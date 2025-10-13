@@ -139,12 +139,12 @@ An example configuration file, `config.json`, is provided in the root of the rep
 
 ### Adding a New Node Type
 
-To add a new type of node to the knowledge graph, you'll need to:
+To add a new type of node to the knowledge graph (e.g., "Document"), follow the established class-based pattern:
 
-1.  **Define a Pydantic model** for the node's properties in `app/models.py`.
-2.  **Create a new service module** in the `app/tools/` directory (e.g., `app/tools/document.py`).
-3.  **Implement the CRUD functions** for your new node type in the service module.
-4.  **Expose the functions as tools** in `app/main.py` using the `@mcp.tool` decorator.
+1.  **Define a Pydantic model** for the node's properties in `app/models.py`. This defines the data schema for your new node type.
+2.  **Create a new tool class** in the `app/tools/` directory (e.g., `app/tools/document.py` would contain a `Documents` class).
+3.  **Implement the tool logic** inside your new class. The constructor should accept `mcp_instance` and a `provider`, and it should register its public methods as tools with `mcp_instance.tool()`. Use the `provider` to access the database and vector store.
+4.  **Register the new tool class** by importing it and instantiating it in `app/tools/tool.py` within the `Tools` class constructor.
 
 By following this pattern, you can easily extend the Knowledge Graph Kit to support any kind of interconnected data your application requires.
 
