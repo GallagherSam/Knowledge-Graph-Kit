@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict, Any
-from fastmcp import FastMCP, Depends
+from fastmcp import FastMCP
 from sqlalchemy.orm import Session
+from dependency_injector.wiring import inject, Provide
 import argparse
 
 # Import the service modules that contain the business logic
@@ -11,8 +12,9 @@ from app.tools import shared as shared_service
 from app.tools import task as task_service
 from app.models import AnyNode
 from app.config import load_config, config
-from app.dependencies import get_db, get_vector_store
 from app.vector_store import VectorStore
+from app.database import Session
+from app.containers import Container
 
 
 # This is the central FastMCP application instance.
@@ -24,12 +26,13 @@ mcp = FastMCP(
 # --- Note Tools ---
 
 @mcp.tool
+@inject
 def create_note(
     title: str,
     content: str,
     tags: Optional[List[str]] = None,
-    db: Session = Depends(get_db),
-    vector_store: VectorStore = Depends(get_vector_store)
+    db: Session = Provide[Container.db],
+    vector_store: VectorStore = Provide[Container.vector_store]
 ) -> Dict[str, Any]:
     """
     Creates a new note with the given properties.
@@ -47,7 +50,6 @@ def create_note(
 @mcp.tool
 def get_notes(
     tags: Optional[List[str]] = None,
-    db: Session = Depends(get_db)
 ) -> List[Dict[str, Any]]:
     """
     Retrieves a list of notes, optionally filtering by tags.
@@ -66,8 +68,6 @@ def update_note(
     title: Optional[str] = None,
     content: Optional[str] = None,
     tags: Optional[List[str]] = None,
-    db: Session = Depends(get_db),
-    vector_store: VectorStore = Depends(get_vector_store)
 ) -> Dict[str, Any]:
     """
     Updates the properties of an existing note.
@@ -90,8 +90,6 @@ def create_person(
     name: str,
     tags: Optional[List[str]] = None,
     metadata: Optional[Dict[str, Any]] = None,
-    db: Session = Depends(get_db),
-    vector_store: VectorStore = Depends(get_vector_store)
 ) -> Dict[str, Any]:
     """
     Creates a new person node.
@@ -110,7 +108,6 @@ def create_person(
 def get_persons(
     name: Optional[str] = None,
     tags: Optional[List[str]] = None,
-    db: Session = Depends(get_db)
 ) -> List[Dict[str, Any]]:
     """
     Retrieves a list of persons, optionally filtering by name or tags.
@@ -130,8 +127,6 @@ def update_person(
     name: Optional[str] = None,
     tags: Optional[List[str]] = None,
     metadata: Optional[Dict[str, Any]] = None,
-    db: Session = Depends(get_db),
-    vector_store: VectorStore = Depends(get_vector_store)
 ) -> Dict[str, Any]:
     """
     Updates the properties of an existing person.
@@ -155,8 +150,6 @@ def create_project(
     description: str,
     status: str = 'active',
     tags: Optional[List[str]] = None,
-    db: Session = Depends(get_db),
-    vector_store: VectorStore = Depends(get_vector_store)
 ) -> Dict[str, Any]:
     """
     Creates a new project node.
@@ -176,7 +169,6 @@ def create_project(
 def get_projects(
     status: Optional[str] = None,
     tags: Optional[List[str]] = None,
-    db: Session = Depends(get_db)
 ) -> List[Dict[str, Any]]:
     """
     Retrieves a list of projects, optionally filtering by status or tags.
@@ -197,8 +189,6 @@ def update_project(
     description: Optional[str] = None,
     status: Optional[str] = None,
     tags: Optional[List[str]] = None,
-    db: Session = Depends(get_db),
-    vector_store: VectorStore = Depends(get_vector_store)
 ) -> Dict[str, Any]:
     """
     Updates the properties of an existing project.
@@ -225,8 +215,6 @@ def create_task(
     status: str = 'todo',
     tags: Optional[List[str]] = None,
     due_date: Optional[str] = None,
-    db: Session = Depends(get_db),
-    vector_store: VectorStore = Depends(get_vector_store)
 ) -> Dict[str, Any]:
     """
     Creates a new task with the given properties.
@@ -246,7 +234,6 @@ def create_task(
 def get_tasks(
     status: Optional[str] = None,
     tags: Optional[List[str]] = None,
-    db: Session = Depends(get_db)
 ) -> List[Dict[str, Any]]:
     """
     Retrieves a list of tasks, optionally filtering by status or tags.
@@ -267,8 +254,6 @@ def update_task(
     status: Optional[str] = None,
     tags: Optional[List[str]] = None,
     due_date: Optional[str] = None,
-    db: Session = Depends(get_db),
-    vector_store: VectorStore = Depends(get_vector_store)
 ) -> Dict[str, Any]:
     """
     Updates the properties of an existing task.
@@ -290,7 +275,7 @@ def update_task(
 # --- Shared Tools ---
 
 @mcp.tool
-def create_edge(source_id: str, label: str, target_id: str, db: Session = Depends(get_db)) -> dict:
+def create_edge(source_id: str, label: str, target_id: str) -> dict:
     """
     Creates a relationship (edge) between two existing nodes.
 
@@ -305,7 +290,7 @@ def create_edge(source_id: str, label: str, target_id: str, db: Session = Depend
     return shared_service.create_edge(db=db, source_id=source_id, label=label, target_id=target_id)
 
 @mcp.tool
-def get_related_nodes(node_id: str, label: Optional[str] = None, db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+def get_related_nodes(node_id: str, label: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Finds all nodes connected to a given node via an edge.
 
@@ -327,7 +312,6 @@ def search_nodes(
     query: Optional[str] = None,
     node_type: Optional[AnyNode] = None,
     tags: Optional[List[str]] = None,
-    db: Session = Depends(get_db)
 ) -> List[Dict[str, Any]]:
     """
 
@@ -345,7 +329,7 @@ def search_nodes(
 
 
 @mcp.tool
-def get_all_tags(db: Session = Depends(get_db)) -> List[str]:
+def get_all_tags() -> List[str]:
     """
     Retrieves a sorted list of all unique tags from all nodes.
 
@@ -356,7 +340,7 @@ def get_all_tags(db: Session = Depends(get_db)) -> List[str]:
 
 
 @mcp.tool
-def delete_node(node_id: str, db: Session = Depends(get_db), vector_store: VectorStore = Depends(get_vector_store)) -> bool:
+def delete_node(node_id: str) -> bool:
     """
     Deletes a node by its unique ID.
 
@@ -370,7 +354,7 @@ def delete_node(node_id: str, db: Session = Depends(get_db), vector_store: Vecto
 
 
 @mcp.tool
-def delete_edge(source_id: str, target_id: str, label: str, db: Session = Depends(get_db)) -> bool:
+def delete_edge(source_id: str, target_id: str, label: str) -> bool:
     """
     Deletes an edge between two nodes, specified by the source and target IDs and the edge label.
 
@@ -388,7 +372,7 @@ def delete_edge(source_id: str, target_id: str, label: str, db: Session = Depend
 
 
 @mcp.tool
-def rename_tag(old_tag: str, new_tag: str, db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+def rename_tag(old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
     """
     Renames a specific tag on all nodes where it is present.
 
@@ -406,8 +390,6 @@ def rename_tag(old_tag: str, new_tag: str, db: Session = Depends(get_db)) -> Lis
 def semantic_search(
     query: str,
     node_type: Optional[AnyNode] = None,
-    db: Session = Depends(get_db),
-    vector_store: VectorStore = Depends(get_vector_store)
 ) -> List[Dict[str, Any]]:
     """
     Performs a semantic search for nodes based on a query string.
