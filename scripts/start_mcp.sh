@@ -8,4 +8,4 @@ if [ -n "$1" ]; then
     CONFIG_FILE="$1"
 fi
 
-PYTHONPATH=. uv run app.main -- --config "$CONFIG_FILE"
+PYTHONPATH=. uv run python app/main.py --config "$CONFIG_FILE"

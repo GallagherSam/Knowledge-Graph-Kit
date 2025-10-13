@@ -4,84 +4,89 @@ from app import crud
 from app.models import NoteProperties
 from app.vector_store import VectorStore
 
-def create_note(
-    db: Session,
-    vector_store: VectorStore,
-    title: str,
-    content: str,
-    tags: Optional[List[str]] = None
-) -> Dict[str, Any]:
-    """
-    Creates a new note with the given properties.
+class Notes:
+    def __init__(self, mcp_instance, provider):
+        self.provider = provider
+    
+        # Register tools
+        mcp_instance.tool(self.create_note)
+        mcp_instance.tool(self.get_notes)
+        mcp_instance.tool(self.update_note)
 
-    Args:
-        db: The SQLAlchemy database session.
-        vector_store: The vector store instance.
-        title: The title of the note.
-        content: The markdown content of the note.
-        tags: A list of tags to categorize the note.
 
-    Returns:
-        A dictionary representing the newly created note node.
-    """
-    properties = NoteProperties(
-        title=title,
-        content=content,
-        tags=tags or []
-    )
-    return crud.create_node(db=db, vector_store=vector_store, node_type="Note", properties=properties.model_dump())
+    def create_note(
+        self,
+        title: str,
+        content: str,
+        tags: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Creates a new note with the given properties.
 
-def get_notes(
-    db: Session,
-    tags: Optional[List[str]] = None
-) -> List[Dict[str, Any]]:
-    """
-    Retrieves a list of notes, optionally filtering by tags.
+        Args:
+            title: The title of the note.
+            content: The markdown content of the note.
+            tags: A list of tags to categorize the note.
 
-    Args:
-        db: The SQLAlchemy database session.
-        tags: Filter notes that have any of the specified tags.
+        Returns:
+            A dictionary representing the newly created note node.
+        """
+        properties = NoteProperties(
+            title=title,
+            content=content,
+            tags=tags or []
+        )
+        with self.provider.get_db() as db:
+            return crud.create_node(db=db, vector_store=self.provider.vector_store, node_type="Note", properties=properties.model_dump())
 
-    Returns:
-        A list of note nodes that match the filter criteria.
-    """
-    if tags:
-        return crud.get_nodes(db=db, node_type="Note", tags=tags)
+    def get_notes(
+        self,
+        tags: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieves a list of notes, optionally filtering by tags.
 
-    return crud.get_nodes(db=db, node_type="Note")
+        Args:
+            tags: Filter notes that have any of the specified tags.
 
-def update_note(
-    db: Session,
-    vector_store: VectorStore,
-    note_id: str,
-    title: Optional[str] = None,
-    content: Optional[str] = None,
-    tags: Optional[List[str]] = None
-) -> Dict[str, Any]:
-    """
-    Updates the properties of an existing note.
+        Returns:
+            A list of note nodes that match the filter criteria.
+        """
+        with self.provider.get_db() as db:
+            if tags:
+                return crud.get_nodes(db=db, node_type="Note", tags=tags)
 
-    Args:
-        db: The SQLAlchemy database session.
-        vector_store: The vector store instance.
-        note_id: The unique ID of the note to update.
-        title: A new title for the note.
-        content: New content for the note.
-        tags: A new list of tags for the note.
+            return crud.get_nodes(db=db, node_type="Note")
 
-    Returns:
-        The updated note node.
-    """
+    def update_note(
+        self,
+        note_id: str,
+        title: Optional[str] = None,
+        content: Optional[str] = None,
+        tags: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Updates the properties of an existing note.
 
-    properties_to_update = {
-        k: v for k, v in {
-            "title": title,
-            "content": content,
-            "tags": tags,
-        }.items() if v is not None
-    }
+        Args:
+            note_id: The unique ID of the note to update.
+            title: A new title for the note.
+            content: New content for the note.
+            tags: A new list of tags for the note.
 
-    if not properties_to_update:
-        raise ValueError("No properties provided to update.")
+        Returns:
+            The updated note node.
+        """
+        with self.provider.get_db() as db:
+            properties_to_update = {
+                k: v for k, v in {
+                    "title": title,
+                    "content": content,
+                    "tags": tags,
+                }.items() if v is not None
+            }
 
-    return crud.update_node(db=db, vector_store=vector_store, node_id=note_id, properties=properties_to_update)
+            if not properties_to_update:
+                raise ValueError("No properties provided to update.")
+
+            return crud.update_node(db=db, vector_store=self.provider.vector_store, node_id=note_id, properties=properties_to_update)

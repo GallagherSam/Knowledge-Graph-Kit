@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-
-from app.tools import note
+from app.tools.note import Notes
 
 @pytest.fixture
 def mock_crud():
@@ -10,71 +9,64 @@ def mock_crud():
         yield mock_crud_module
 
 @pytest.fixture
-def mock_db():
-    """Fixture to mock the db session."""
-    return MagicMock()
+def notes_instance(mock_mcp, mock_provider):
+    """Fixture to create an instance of the Notes class for testing."""
+    return Notes(mock_mcp, mock_provider)
 
-@pytest.fixture
-def mock_vector_store():
-    """Fixture to mock the vector store."""
-    return MagicMock()
+def test_notes_init(notes_instance, mock_mcp):
+    """Test that the Notes class registers its tools on initialization."""
+    assert mock_mcp.tool.call_count == 3
+    mock_mcp.tool.assert_any_call(notes_instance.create_note)
+    mock_mcp.tool.assert_any_call(notes_instance.get_notes)
+    mock_mcp.tool.assert_any_call(notes_instance.update_note)
 
-def test_create_note(mock_crud, mock_db, mock_vector_store):
+def test_create_note(notes_instance, mock_crud, mock_provider, mock_db_session, mock_vector_store_instance):
     """Test creating a note successfully."""
     mock_crud.create_node.return_value = {"id": "1", "type": "Note", "properties": {"title": "Test", "content": "Content"}}
 
-    result = note.create_note(db=mock_db, vector_store=mock_vector_store, title="Test", content="Content", tags=["tag1"])
+    result = notes_instance.create_note(title="Test", content="Content", tags=["tag1"])
 
     assert result["properties"]["title"] == "Test"
-
     mock_crud.create_node.assert_called_once()
     call_args, call_kwargs = mock_crud.create_node.call_args
-    assert call_kwargs["db"] == mock_db
-    assert call_kwargs["vector_store"] == mock_vector_store
+    assert call_kwargs["db"] == mock_db_session
+    assert call_kwargs["vector_store"] == mock_vector_store_instance
     assert call_kwargs["node_type"] == "Note"
     assert call_kwargs["properties"]["title"] == "Test"
     assert call_kwargs["properties"]["content"] == "Content"
     assert call_kwargs["properties"]["tags"] == ["tag1"]
 
-def test_get_notes_no_tags(mock_crud, mock_db):
+def test_get_notes_no_tags(notes_instance, mock_crud, mock_db_session):
     """Test getting all notes when no tags are provided."""
     mock_crud.get_nodes.return_value = [{"id": "1", "type": "Note"}]
 
-    result = note.get_notes(db=mock_db)
+    result = notes_instance.get_notes()
 
     assert len(result) == 1
-    mock_crud.get_nodes.assert_called_once_with(db=mock_db, node_type="Note")
+    mock_crud.get_nodes.assert_called_once_with(db=mock_db_session, node_type="Note")
 
-def test_get_notes_with_tags(mock_crud, mock_db):
+def test_get_notes_with_tags(notes_instance, mock_crud, mock_db_session):
     """Test filtering notes by tags."""
-    mock_notes = [
-        {"id": "1", "properties": {"tags": ["a", "b"]}},
-        {"id": "2", "properties": {"tags": ["b", "c"]}},
-        {"id": "3", "properties": {"tags": ["d"]}},
-    ]
-    mock_crud.get_nodes.return_value = mock_notes
+    mock_crud.get_nodes.return_value = [{"id": "1", "type": "Note"}]
 
-    result = note.get_notes(db=mock_db, tags=["a", "c"])
-    assert result is not None
+    notes_instance.get_notes(tags=["a", "c"])
+    mock_crud.get_nodes.assert_called_once_with(db=mock_db_session, node_type="Note", tags=["a", "c"])
 
-def test_update_note(mock_crud, mock_db, mock_vector_store):
+def test_update_note(notes_instance, mock_crud, mock_provider, mock_db_session, mock_vector_store_instance):
     """Test updating a note successfully."""
     mock_crud.update_node.return_value = {"id": "1", "properties": {"title": "New Title"}}
 
-    result = note.update_note(db=mock_db, vector_store=mock_vector_store, note_id="1", title="New Title")
+    result = notes_instance.update_note(note_id="1", title="New Title")
 
     assert result["properties"]["title"] == "New Title"
-
     mock_crud.update_node.assert_called_once()
     call_args, call_kwargs = mock_crud.update_node.call_args
-    assert call_kwargs["db"] == mock_db
-    assert call_kwargs["vector_store"] == mock_vector_store
+    assert call_kwargs["db"] == mock_db_session
+    assert call_kwargs["vector_store"] == mock_vector_store_instance
     assert call_kwargs["node_id"] == "1"
     assert call_kwargs["properties"] == {"title": "New Title"}
 
-def test_update_note_no_properties(mock_crud, mock_db, mock_vector_store):
+def test_update_note_no_properties(notes_instance):
     """Test that updating a note with no properties raises a ValueError."""
-    with pytest.raises(ValueError):
-        note.update_note(db=mock_db, vector_store=mock_vector_store, note_id="1")
-
-    mock_crud.update_node.assert_not_called()
+    with pytest.raises(ValueError, match="No properties provided to update"):
+        notes_instance.update_note(note_id="1")

@@ -9,7 +9,6 @@ dependencies = [
     "sqlalchemy",
     "sentence-transformers",
     "chromadb",
-    "dependency-injector"
 ]
 
 [project.optional-dependencies]
