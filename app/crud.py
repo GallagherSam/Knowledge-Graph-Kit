@@ -220,9 +220,11 @@ def get_connected_nodes(
         return []
 
     # BFS traversal implementation
+    # The queue stores tuples of (node_id, depth)
     queue = [(node_id, 0)]
+    # Keep track of visited nodes to avoid cycles
     visited_node_ids = {node_id}
-    connected_nodes_map = {}
+    connected_nodes = {}
 
     while queue:
         current_node_id, current_depth = queue.pop(0)
@@ -251,10 +253,10 @@ def get_connected_nodes(
         for node in nodes:
             if node.id not in visited_node_ids:
                 visited_node_ids.add(node.id)
-                connected_nodes_map[node.id] = {"id": node.id, "type": node.type, "properties": node.properties}
+                connected_nodes[node.id] = {"id": node.id, "type": node.type, "properties": node.properties}
                 queue.append((node.id, current_depth + 1))
 
-    return list(connected_nodes_map.values())
+    return list(connected_nodes.values())
 
 def search_nodes(
     db: Session,

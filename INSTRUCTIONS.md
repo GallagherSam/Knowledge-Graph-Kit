@@ -151,10 +151,11 @@ Creates a relationship (edge) between two existing nodes.
 *   **`target_id`** (str): The unique ID of the ending node.
 
 #### `get_related_nodes`
-Finds all nodes connected to a given node via an edge. This is the most efficient way to discover relationships.
+Finds all nodes connected to a given node, up to a specified depth. This is the most efficient way to discover relationships.
 
 *   **`node_id`** (str): The unique ID of the node to start from.
 *   **`label`** (Optional[str]): An optional relationship label to filter by (e.g., 'part_of', 'mentions').
+*   **`depth`** (int): The maximum depth to traverse the graph (default: 1).
 
 #### `search_nodes`
 Searches for nodes based on a query string, type, and tags. This is a literal, keyword-based search.
@@ -206,6 +207,6 @@ Here is a simple example of how to use the tools to manage a project.
 **User:** "What are the tasks for the 'Website Redesign' project?"
 **You:**
 1. `get_projects(name='Website Redesign')` to find the project's ID (`project_123`).
-2. `get_related_nodes(node_id='project_123', label='part_of')` to efficiently find all tasks that are part of the project.
+2. `get_related_nodes(node_id='project_123', label='part_of', depth=2)` to efficiently find all tasks that are part of the project.
 
 By following this structure, you can effectively manage the user's knowledge graph.
