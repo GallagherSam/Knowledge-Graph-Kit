@@ -201,36 +201,62 @@ def delete_edge(db: Session, edge_id: str) -> bool:
         return True
     return False
 
-def get_connected_nodes(db: Session, node_id: str, label: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_connected_nodes(
+    db: Session, node_id: str, label: Optional[str] = None, depth: int = 1
+) -> List[Dict[str, Any]]:
     """
-    Retrieves all nodes connected to a given node by an edge.
+    Retrieves all nodes connected to a given node up to a specified depth.
 
     Args:
         db: The SQLAlchemy database session.
         node_id: The ID of the starting node.
         label: An optional edge label to filter the relationships by.
+        depth: The maximum depth to traverse the graph.
 
     Returns:
         A list of node dictionaries that are connected to the starting node.
     """
-    query = db.query(EdgeModel)
-    if label:
-        query = query.filter(EdgeModel.label == label)
-    
-    edges = query.all()
-    
-    connected_node_ids = set()
-    for edge in edges:
-        if edge.source_id == node_id:
-            connected_node_ids.add(edge.target_id)
-        elif edge.target_id == node_id:
-            connected_node_ids.add(edge.source_id)
-            
-    if not connected_node_ids:
+    if depth <= 0:
         return []
 
-    nodes = db.query(NodeModel).filter(NodeModel.id.in_(list(connected_node_ids))).all()
-    return [{"id": n.id, "type": n.type, "properties": n.properties} for n in nodes]
+    # BFS traversal implementation
+    # The queue stores tuples of (node_id, depth)
+    queue = [(node_id, 0)]
+    # Keep track of visited nodes to avoid cycles
+    visited_node_ids = {node_id}
+    connected_nodes = {}
+
+    while queue:
+        current_node_id, current_depth = queue.pop(0)
+
+        if current_depth >= depth:
+            continue
+
+        query = db.query(EdgeModel).filter(
+            (EdgeModel.source_id == current_node_id) | (EdgeModel.target_id == current_node_id)
+        )
+        if label:
+            query = query.filter(EdgeModel.label == label)
+
+        edges = query.all()
+
+        neighbor_ids = set()
+        for edge in edges:
+            if edge.source_id == current_node_id:
+                neighbor_ids.add(edge.target_id)
+            else:
+                neighbor_ids.add(edge.source_id)
+
+        # Fetch node details for the neighbors
+        nodes = db.query(NodeModel).filter(NodeModel.id.in_(list(neighbor_ids))).all()
+
+        for node in nodes:
+            if node.id not in visited_node_ids:
+                visited_node_ids.add(node.id)
+                connected_nodes[node.id] = {"id": node.id, "type": node.type, "properties": node.properties}
+                queue.append((node.id, current_depth + 1))
+
+    return list(connected_nodes.values())
 
 def search_nodes(
     db: Session,

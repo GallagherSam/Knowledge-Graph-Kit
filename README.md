@@ -18,6 +18,7 @@ This structure allows you to create a rich, interconnected web of information th
 *   **Semantic Search:** Find conceptually related nodes even without keyword matches.
 *   **Full-Text Search:** Powerful keyword-based search across all nodes.
 *   **Tagging System:** Organize and filter nodes with a flexible tagging system.
+*   **Graph Traversal:** Explore connections between nodes up to a specified depth.
 *   **FastAPI Integration:** Exposes a clean, tool-based API for your AI agents.
 
 ## Getting Started

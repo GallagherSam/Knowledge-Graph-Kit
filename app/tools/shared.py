@@ -29,19 +29,22 @@ class Shared:
         with self.provider.get_db() as db:
             return crud.create_edge(db=db, source_id=source_id, label=label, target_id=target_id)
 
-    def get_related_nodes(self, node_id: str, label: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_related_nodes(
+        self, node_id: str, label: Optional[str] = None, depth: int = 1
+    ) -> List[Dict[str, Any]]:
         """
-        Finds all nodes connected to a given node via an edge.
+        Finds all nodes connected to a given node, up to a specified depth.
 
         Args:
             node_id: The unique ID of the node to start from.
             label: An optional relationship label to filter by.
+            depth: The maximum depth to traverse the graph (default: 1).
 
         Returns:
             A list of connected node dictionaries.
         """
         with self.provider.get_db() as db:
-            return crud.get_connected_nodes(db=db, node_id=node_id, label=label)
+            return crud.get_connected_nodes(db=db, node_id=node_id, label=label, depth=depth)
 
     def search_nodes(
         self,
