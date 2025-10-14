@@ -58,11 +58,20 @@ class Tasks:
             A list of task nodes that match the filter criteria.
         """
         with self.provider.get_db() as db:
+            properties_to_filter = {}
             if status:
-                return crud.get_nodes(db=db, node_type="Task", properties={"status": status})
+                properties_to_filter["status"] = status
+
+            tasks = crud.get_nodes(db=db, node_type="Task", **properties_to_filter)
+
             if tags:
-                return crud.get_nodes(db=db, node_type="Task", tags=tags)
-            return crud.get_nodes(db=db, node_type="Task")
+                tasks = [
+                    task
+                    for task in tasks
+                    if any(tag in task.get("properties", {}).get("tags", []) for tag in tags)
+                ]
+            
+            return tasks
 
     def update_task(
         self,

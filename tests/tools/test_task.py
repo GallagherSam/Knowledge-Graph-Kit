@@ -46,12 +46,36 @@ def test_get_tasks_no_filters(tasks_instance, mock_crud, mock_db_session):
 def test_get_tasks_with_status_filter(tasks_instance, mock_crud, mock_db_session):
     """Test filtering tasks by status."""
     tasks_instance.get_tasks(status="done")
-    mock_crud.get_nodes.assert_called_once_with(db=mock_db_session, node_type="Task", properties={"status": "done"})
+    mock_crud.get_nodes.assert_called_once_with(db=mock_db_session, node_type="Task", status="done")
 
 def test_get_tasks_with_tags_filter(tasks_instance, mock_crud, mock_db_session):
     """Test filtering tasks by tags."""
-    tasks_instance.get_tasks(tags=["c"])
-    mock_crud.get_nodes.assert_called_once_with(db=mock_db_session, node_type="Task", tags=["c"])
+    mock_crud.get_nodes.return_value = [
+        {"id": "1", "properties": {"tags": ["a", "b"]}},
+        {"id": "2", "properties": {"tags": ["b", "c"]}},
+        {"id": "3", "properties": {"tags": ["a", "c"]}},
+    ]
+
+    result = tasks_instance.get_tasks(tags=["c"])
+
+    assert len(result) == 2
+    assert result[0]["id"] == "2"
+    assert result[1]["id"] == "3"
+    mock_crud.get_nodes.assert_called_once_with(db=mock_db_session, node_type="Task")
+
+def test_get_tasks_with_status_and_tags_filter(tasks_instance, mock_crud, mock_db_session):
+    """Test filtering tasks by both status and tags."""
+    mock_crud.get_nodes.return_value = [
+        {"id": "1", "properties": {"status": "done", "tags": ["a", "b"]}},
+        {"id": "2", "properties": {"status": "done", "tags": ["b", "c"]}},
+    ]
+
+    result = tasks_instance.get_tasks(status="done", tags=["c"])
+
+    assert len(result) == 1
+    assert result[0]["id"] == "2"
+    mock_crud.get_nodes.assert_called_once_with(db=mock_db_session, node_type="Task", status="done")
+
 
 def test_update_task(tasks_instance, mock_crud, mock_db_session, mock_vector_store_instance):
     """Test updating a task successfully."""
