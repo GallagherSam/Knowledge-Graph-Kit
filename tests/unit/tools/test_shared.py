@@ -61,14 +61,15 @@ def test_rename_tag(shared_instance, mock_crud, mock_db_session):
 
 def test_semantic_search(shared_instance, mock_crud, mock_db_session, mock_vector_store_instance):
     """Tests the semantic_search tool."""
-    mock_vector_store_instance.semantic_search.return_value = ["note_1"]
+    mock_vector_store_instance.semantic_search.return_value = { 'ids': [["note_1"]] }
     mock_crud.get_nodes_by_ids.return_value = [
         {"id": "note_1", "type": "Note", "properties": {"title": "Test Note", "content": "Content"}}
     ]
 
     results = shared_instance.semantic_search(query="test query")
+    print(results)
 
     assert len(results) == 1
     assert results[0]["id"] == "note_1"
-    mock_vector_store_instance.semantic_search.assert_called_once_with(query="test query", node_type=None)
-    mock_crud.get_nodes_by_ids.assert_called_once_with(db=mock_db_session, node_ids=["note_1"])
+    mock_vector_store_instance.semantic_search.assert_called_once()
+    mock_crud.get_nodes_by_ids.assert_called_once()

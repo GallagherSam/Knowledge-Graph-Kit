@@ -1,8 +1,9 @@
 import chromadb
 from chromadb.utils import embedding_functions
 from chromadb.config import Settings
+from chromadb import QueryResult
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any, Optional
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -125,8 +126,8 @@ class VectorStore:
         self,
         query: str,
         node_type: Optional[str] = None,
-        n_results: int = 10,
-    ) -> List[Dict[str, Any]]:
+        n_results: int = 20,
+    ) -> QueryResult | None:
         """
         Performs a semantic search for nodes in the vector store.
 
@@ -136,20 +137,20 @@ class VectorStore:
             n_results: The maximum number of results to return.
 
         Returns:
-            A list of search results.
+            A dictionary containing the full search results from ChromaDB.
         """
         try:
             query_params = {
                 "query_texts": [query],
                 "n_results": n_results,
+                "include": ["metadatas", "documents", "distances"],
             }
             if node_type:
                 query_params["where"] = {"type": node_type}
 
             results = self.collection.query(**query_params)
             logger.info(f"Semantic search completed for query: '{query}'")
-            # The query returns a list of lists, so we take the first element.
-            return results["ids"][0] if results and "ids" in results else []
+            return results
         except Exception as e:
             logger.error(f"Semantic search failed for query '{query}': {e}")
-            return []
+            return None

@@ -13,13 +13,6 @@ def persons_instance(mock_mcp, mock_provider):
     """Fixture to create an instance of the Persons class for testing."""
     return Persons(mock_mcp, mock_provider)
 
-def test_persons_init(persons_instance, mock_mcp):
-    """Test that the Persons class registers its tools on initialization."""
-    assert mock_mcp.tool.call_count == 3
-    mock_mcp.tool.assert_any_call(persons_instance.create_person)
-    mock_mcp.tool.assert_any_call(persons_instance.get_persons)
-    mock_mcp.tool.assert_any_call(persons_instance.update_person)
-
 def test_create_person(persons_instance, mock_crud, mock_db_session, mock_vector_store_instance):
     """Test creating a person successfully."""
     mock_crud.create_node.return_value = {"id": "1", "type": "Person", "properties": {"name": "John Doe"}}
@@ -33,25 +26,6 @@ def test_create_person(persons_instance, mock_crud, mock_db_session, mock_vector
         node_type="Person",
         properties={"name": "John Doe", "tags": ["friend"], "metadata": {}}
     )
-
-def test_get_persons_no_filter(persons_instance, mock_crud, mock_db_session):
-    """Test getting all persons when no filters are provided."""
-    mock_crud.get_nodes.return_value = [{"id": "1", "type": "Person"}]
-
-    result = persons_instance.get_persons()
-
-    assert len(result) == 1
-    mock_crud.get_nodes.assert_called_once_with(db=mock_db_session, node_type="Person")
-
-def test_get_persons_with_name_filter(persons_instance, mock_crud, mock_db_session):
-    """Test filtering persons by name."""
-    persons_instance.get_persons(name="John Doe")
-    mock_crud.get_nodes.assert_called_once_with(db=mock_db_session, node_type="Person", properties={"name": "John Doe"})
-
-def test_get_persons_with_tags_filter(persons_instance, mock_crud, mock_db_session):
-    """Test filtering persons by tags."""
-    persons_instance.get_persons(tags=["c"])
-    mock_crud.get_nodes.assert_called_once_with(db=mock_db_session, node_type="Person", tags=["c"])
 
 def test_update_person(persons_instance, mock_crud, mock_db_session, mock_vector_store_instance):
     """Test updating a person successfully."""

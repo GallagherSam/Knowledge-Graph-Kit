@@ -1,4 +1,5 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
+import datetime
 from app import crud
 from app.models import TaskProperties
 
@@ -6,15 +7,14 @@ class Tasks:
     def __init__(self, mcp_instance, provider):
         self.provider = provider
         mcp_instance.tool(self.create_task)
-        mcp_instance.tool(self.get_tasks)
         mcp_instance.tool(self.update_task)
 
     def create_task(
         self,
         description: str,
-        status: str = 'todo',
+        status: Literal['todo', 'in_progress', 'in_review', 'cancelled', 'done'] = 'todo',
         tags: Optional[List[str]] = None,
-        due_date: Optional[str] = None,
+        due_date: Optional[datetime.datetime] = None,
     ) -> Dict[str, Any]:
         """
         Creates a new task with the given properties.
@@ -42,42 +42,11 @@ class Tasks:
                 properties=properties.model_dump()
             )
 
-    def get_tasks(
-        self,
-        status: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Retrieves a list of tasks, optionally filtering by status or tags.
-
-        Args:
-            status: Filter tasks by their status.
-            tags: Filter tasks that have any of the specified tags.
-
-        Returns:
-            A list of task nodes that match the filter criteria.
-        """
-        with self.provider.get_db() as db:
-            properties_to_filter = {}
-            if status:
-                properties_to_filter["status"] = status
-
-            tasks = crud.get_nodes(db=db, node_type="Task", **properties_to_filter)
-
-            if tags:
-                tasks = [
-                    task
-                    for task in tasks
-                    if any(tag in task.get("properties", {}).get("tags", []) for tag in tags)
-                ]
-            
-            return tasks
-
     def update_task(
         self,
         task_id: str,
         description: Optional[str] = None,
-        status: Optional[str] = None,
+        status: Optional[Literal['todo', 'in_progress', 'in_review', 'cancelled', 'done']] = None,
         tags: Optional[List[str]] = None,
         due_date: Optional[str] = None,
     ) -> Dict[str, Any]:

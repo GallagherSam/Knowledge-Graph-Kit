@@ -6,7 +6,6 @@ class Persons:
     def __init__(self, mcp_instance, provider):
         self.provider = provider
         mcp_instance.tool(self.create_person)
-        mcp_instance.tool(self.get_persons)
         mcp_instance.tool(self.update_person)
 
     def create_person(
@@ -38,30 +37,6 @@ class Persons:
                 node_type="Person",
                 properties=properties.model_dump()
             )
-
-    def get_persons(
-        self,
-        name: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Retrieves a list of persons, optionally filtering by name or tags.
-
-        Args:
-            name: Filter persons by exact name match.
-            tags: Filter persons that have any of the specified tags.
-
-        Returns:
-            A list of person nodes that match the filter criteria.
-        """
-        with self.provider.get_db() as db:
-            if name:
-                # Assuming exact match for name for simplicity.
-                # A more complex search might be needed for partial matches.
-                return crud.get_nodes(db=db, node_type="Person", properties={"name": name})
-            if tags:
-                return crud.get_nodes(db=db, node_type="Person", tags=tags)
-            return crud.get_nodes(db=db, node_type="Person")
 
     def update_person(
         self,
