@@ -119,3 +119,45 @@ def test_task_search_integration(tools_instance):
     # Test searching with a query that matches nothing
     results_nothing = tools_instance.shared.search_nodes(query="nonexistent", node_type="Task")
     assert len(results_nothing) == 0
+
+def test_get_tasks_by_status_integration(tools_instance):
+    """
+    Integration test for the get_tasks_by_status tool.
+    Verifies that tasks are correctly filtered by their status property.
+    """
+    # 1. Arrange: Create a set of tasks with different statuses.
+    task_done_1 = tools_instance.tasks.create_task(
+        description="Completed task 1",
+        status="done"
+    )
+    task_todo = tools_instance.tasks.create_task(
+        description="A task to be done",
+        status="todo"
+    )
+    task_done_2 = tools_instance.tasks.create_task(
+        description="Completed task 2",
+        status="done"
+    )
+    task_in_progress = tools_instance.tasks.create_task(
+        description="A task currently in progress",
+        status="in_progress"
+    )
+
+    # 2. Act: Retrieve tasks with the 'done' status.
+    done_tasks = tools_instance.tasks.get_tasks_by_status(status="done")
+
+    # 3. Assert: Verify the results for 'done' tasks.
+    assert len(done_tasks) == 2
+    done_task_ids = {task["id"] for task in done_tasks}
+    assert {task_done_1["id"], task_done_2["id"]} == done_task_ids
+    for task in done_tasks:
+        assert task["properties"]["status"] == "done"
+
+    # 4. Act & Assert: Verify for another status.
+    in_progress_tasks = tools_instance.tasks.get_tasks_by_status(status="in_progress")
+    assert len(in_progress_tasks) == 1
+    assert in_progress_tasks[0]["id"] == task_in_progress["id"]
+
+    # 5. Act & Assert: Verify for a status with no tasks.
+    cancelled_tasks = tools_instance.tasks.get_tasks_by_status(status="cancelled")
+    assert len(cancelled_tasks) == 0

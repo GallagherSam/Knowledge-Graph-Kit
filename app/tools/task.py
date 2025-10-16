@@ -8,6 +8,7 @@ class Tasks:
         self.provider = provider
         mcp_instance.tool(self.create_task)
         mcp_instance.tool(self.update_task)
+        mcp_instance.tool(self.get_tasks_by_status)
 
     def create_task(
         self,
@@ -82,3 +83,23 @@ class Tasks:
                 node_id=task_id,
                 properties=properties_to_update
             )
+
+    def get_tasks_by_status(
+        self,
+        status: Literal['todo', 'in_progress', 'in_review', 'cancelled', 'done'],
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieves tasks filtered by their status.
+
+        Args:
+            status: The status to filter by (e.g., 'todo', 'done').
+
+        Returns:
+            A list of task nodes matching the status.
+        """
+        with self.provider.get_db() as db:
+            all_tasks = crud.search_nodes(db=db, node_type="Task")
+            return [
+                task for task in all_tasks
+                if task.get("properties", {}).get("status") == status
+            ]

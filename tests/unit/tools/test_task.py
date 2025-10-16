@@ -45,3 +45,27 @@ def test_update_task_no_properties(tasks_instance):
     """Test that updating a task with no properties raises a ValueError."""
     with pytest.raises(ValueError, match="No properties provided to update"):
         tasks_instance.update_task(task_id="1")
+
+def test_get_tasks_by_status(tasks_instance, mock_crud):
+    """Test retrieving tasks and filtering them by status."""
+    # 1. Arrange: Mock the return value of search_nodes to include tasks with various statuses.
+    mock_tasks = [
+        {"id": "1", "type": "Task", "properties": {"description": "Task 1", "status": "done"}},
+        {"id": "2", "type": "Task", "properties": {"description": "Task 2", "status": "todo"}},
+        {"id": "3", "type": "Task", "properties": {"description": "Task 3", "status": "done"}},
+        {"id": "4", "type": "Task", "properties": {"description": "Task 4", "status": "in_progress"}},
+    ]
+    mock_crud.search_nodes.return_value = mock_tasks
+
+    # 2. Act: Call the method to get tasks with the 'done' status.
+    result = tasks_instance.get_tasks_by_status(status="done")
+
+    # 3. Assert
+    # Verify that search_nodes was called to fetch all tasks.
+    mock_crud.search_nodes.assert_called_once_with(db=tasks_instance.provider.get_db().__enter__(), node_type="Task")
+    
+    # Verify that the result is correctly filtered.
+    assert len(result) == 2
+    assert result[0]["id"] == "1"
+    assert result[1]["id"] == "3"
+    assert all(task["properties"]["status"] == "done" for task in result)
