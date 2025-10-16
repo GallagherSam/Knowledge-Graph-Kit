@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict, Any
+import json
 from app import crud
 from app.models import AnyNode
 
@@ -27,7 +28,7 @@ class Shared:
             A dictionary representing the newly created edge.
         """
         with self.provider.get_db() as db:
-            return crud.create_edge(db=db, source_id=source_id, label=label, target_id=target_id)
+            return crud.create_edge(db=db, source_id=source_id, target_id=target_id, label=label)
 
     def get_related_nodes(
         self, node_id: str, label: Optional[str] = None, depth: int = 1
@@ -131,9 +132,27 @@ class Shared:
             node_type: The type of nodes to filter by (e.g., "Task", "Note").
 
         Returns:
-            A list of nodes that are semantically similar to the query.
+            A list of nodes that are semantically similar to the query,
+            ordered by relevance.
         """
         with self.provider.get_db() as db:
             vector_store = self.provider.vector_store
-            node_ids = vector_store.semantic_search(query=query, node_type=node_type)
-            return crud.get_nodes_by_ids(db=db, node_ids=node_ids)
+            search_results = vector_store.semantic_search(query=query, node_type=node_type)
+            
+            if not search_results:
+                return []
+
+            # The results from ChromaDB are in a list of lists, one for each query.
+            # Since we only send one query, we take the first list of IDs.
+            node_ids = search_results["ids"][0]
+            
+            # Fetch the full node objects from the database
+            nodes = crud.get_nodes_by_ids(db=db, node_ids=node_ids)
+
+            # Create a dictionary for quick lookups of nodes by their ID
+            nodes_by_id = {node['id']: node for node in nodes}
+
+            # Reorder the nodes based on the semantic search results order
+            ordered_nodes = [nodes_by_id[id] for id in node_ids if id in nodes_by_id]
+            
+            return ordered_nodes

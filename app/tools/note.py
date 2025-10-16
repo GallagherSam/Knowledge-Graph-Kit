@@ -10,7 +10,6 @@ class Notes:
     
         # Register tools
         mcp_instance.tool(self.create_note)
-        mcp_instance.tool(self.get_notes)
         mcp_instance.tool(self.update_note)
 
 
@@ -38,25 +37,6 @@ class Notes:
         )
         with self.provider.get_db() as db:
             return crud.create_node(db=db, vector_store=self.provider.vector_store, node_type="Note", properties=properties.model_dump())
-
-    def get_notes(
-        self,
-        tags: Optional[List[str]] = None
-    ) -> List[Dict[str, Any]]:
-        """
-        Retrieves a list of notes, optionally filtering by tags.
-
-        Args:
-            tags: Filter notes that have any of the specified tags.
-
-        Returns:
-            A list of note nodes that match the filter criteria.
-        """
-        with self.provider.get_db() as db:
-            if tags:
-                return crud.get_nodes(db=db, node_type="Note", tags=tags)
-
-            return crud.get_nodes(db=db, node_type="Note")
 
     def update_note(
         self,

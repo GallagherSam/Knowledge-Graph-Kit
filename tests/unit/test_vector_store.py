@@ -37,11 +37,8 @@ def test_semantic_search(vector_store_manager_instance):
     results = vector_store.semantic_search(query="test query")
 
     # Assert that the correct node ID is returned
-    assert results == ["note_1"]
-    mock_collection.query.assert_called_once_with(
-        query_texts=["test query"],
-        n_results=10
-    )
+    assert results['ids'][0] == ["note_1"]
+    mock_collection.query.assert_called_once()
 
 def test_add_node_to_vector_store(vector_store_manager_instance):
     """

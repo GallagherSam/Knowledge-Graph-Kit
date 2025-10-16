@@ -1,8 +1,9 @@
 from typing import List, Dict, Any, Optional, Type
+import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import String
-from app.vector_store import VectorStore
 
+from app.vector_store import VectorStore
 from app.models import (
     Node,
     Edge,
@@ -12,7 +13,7 @@ from app.models import (
     ProjectProperties,
     AnyNode,
 )
-from app.state import NodeModel, EdgeModel
+from app.database import NodeModel, EdgeModel
 
 # A mapping from the string representation of a node type to its Pydantic model class.
 PROPERTIES_MODELS: Dict[AnyNode, Type[TaskProperties | NoteProperties | PersonProperties | ProjectProperties]] = {
@@ -45,7 +46,7 @@ def create_node(db: Session, vector_store: VectorStore, node_type: AnyNode, prop
     db.commit()
     db.refresh(db_node)
     created_node = {"id": db_node.id, "type": db_node.type, "properties": db_node.properties}
-
+    
     vector_store.add_node(created_node)
     return created_node
 
@@ -116,6 +117,7 @@ def update_node(db: Session, vector_store: VectorStore, node_id: str, properties
     updated_properties = db_node.properties.copy()
     updated_properties.update(properties)
     
+    updated_properties["modified_at"] = datetime.datetime.now(datetime.timezone.utc)
     node_type = db_node.type
     PropertiesModel = PROPERTIES_MODELS[node_type]
     validated_properties = PropertiesModel(**updated_properties).model_dump(mode="json")
@@ -150,7 +152,7 @@ def delete_node(db: Session, vector_store: VectorStore, node_id: str) -> bool:
         return True
     return False
 
-def create_edge(db: Session, source_id: str, label: str, target_id: str) -> Dict[str, Any]:
+def create_edge(db: Session, source_id: str, target_id: str, label: str) -> Dict[str, Any]:
     """
     Creates a new edge between two nodes and saves it to the database.
 

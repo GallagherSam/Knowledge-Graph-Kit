@@ -1,7 +1,7 @@
 from functools import lru_cache
 from contextlib import contextmanager
 
-from app.database import SessionLocal
+from app.database import init_db
 from app.vector_store import VectorStore
 
 from app.tools.note import Notes
@@ -20,7 +20,8 @@ class Tools:
     
     @contextmanager
     def get_db(self):
-        db = SessionLocal()
+        session_local = init_db()
+        db = session_local()
         try:
             yield db
         finally:

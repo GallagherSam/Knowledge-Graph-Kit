@@ -6,7 +6,6 @@ class Projects:
     def __init__(self, mcp_instance, provider):
         self.provider = provider
         mcp_instance.tool(self.create_project)
-        mcp_instance.tool(self.get_projects)
         mcp_instance.tool(self.update_project)
 
     def create_project(
@@ -41,28 +40,6 @@ class Projects:
                 node_type="Project",
                 properties=properties.model_dump()
             )
-
-    def get_projects(
-        self,
-        status: Optional[Literal['active', 'archived']] = None,
-        tags: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Retrieves a list of projects, optionally filtering by status or tags.
-
-        Args:
-            status: Filter projects by their status.
-            tags: Filter projects that have any of the specified tags.
-
-        Returns:
-            A list of project nodes that match the filter criteria.
-        """
-        with self.provider.get_db() as db:
-            if status:
-                return crud.get_nodes(db=db, node_type="Project", properties={"status": status})
-            if tags:
-                return crud.get_nodes(db=db, node_type="Project", tags=tags)
-            return crud.get_nodes(db=db, node_type="Project")
 
     def update_project(
         self,
