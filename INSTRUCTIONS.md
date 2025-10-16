@@ -116,6 +116,11 @@ Updates the properties of an existing task.
 *   **`tags`** (Optional[List[str]]): A new list of tags for the task.
 *   **`due_date`** (Optional[str]): A new due date for the task.
 
+#### `get_tasks_by_status`
+Retrieves tasks filtered by their status.
+
+*   **`status`** (str): The status to filter by (e.g., 'todo', 'done').
+
 ---
 
 ### Graph & Relationship Tools
