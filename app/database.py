@@ -2,19 +2,21 @@ from __future__ import annotations
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import Column, String, JSON
-from .config import config
 
 Base = declarative_base()
 
-def init_db():
+def init_db(database_url: str):
     """
     Initializes the database connection and creates tables if they don't exist.
+
+    Args:
+        database_url: The SQLAlchemy database connection URL
 
     Returns:
         A sessionmaker factory for creating database sessions.
     """
     engine = create_engine(
-        config["SQLALCHEMY_DATABASE_URL"], connect_args={"check_same_thread": False}
+        database_url, connect_args={"check_same_thread": False}
     )
 
     # Create all tables if they don't exist

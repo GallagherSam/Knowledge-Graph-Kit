@@ -1,39 +1,69 @@
 import json
-from typing import Dict, Any
+from typing import Optional
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
-DEFAULT_CONFIG = {
-    "SQLALCHEMY_DATABASE_URL": "sqlite:///./graph.db",
-    "CHROMA_DATA_PATH": "chroma_data",
-    "EMBEDDING_MODEL": "all-MiniLM-L6-v2",
-    "HOST": "0.0.0.0",
-    "PORT": 8000,
-}
 
-# Global variable to hold the configuration
-config: Dict[str, Any] = DEFAULT_CONFIG.copy()
+class AppConfig(BaseSettings):
+    """Application configuration with validation and immutability."""
 
-def load_config(path: str):
+    SQLALCHEMY_DATABASE_URL: str = Field(
+        default="sqlite:///./graph.db",
+        description="Database connection URL"
+    )
+    CHROMA_DATA_PATH: str = Field(
+        default="chroma_data",
+        description="Path for ChromaDB storage"
+    )
+    EMBEDDING_MODEL: str = Field(
+        default="all-MiniLM-L6-v2",
+        description="Sentence transformer model name"
+    )
+    HOST: str = Field(
+        default="0.0.0.0",
+        description="Server host address"
+    )
+    PORT: int = Field(
+        default=8000,
+        description="Server port number",
+        ge=1,
+        le=65535
+    )
+
+    model_config = {
+        # Makes the config immutable
+        "frozen": True,
+        # Allow loading from .env files
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+    }
+
+
+def load_config(config_path: Optional[str] = None) -> AppConfig:
     """
-    Loads the configuration from a JSON file, populating the global config object.
-    It starts with default values and overrides them with any values from the file.
+    Load configuration from JSON file or environment variables.
 
     Args:
-        path: The path to the configuration file.
-    """
-    global config
-    
-    # Start with a copy of the default configuration
-    temp_config = DEFAULT_CONFIG.copy()
+        config_path: Optional path to JSON config file. If provided, loads from JSON.
+                    If None, loads from environment variables or uses defaults.
 
-    try:
-        with open(path, 'r') as f:
-            file_config = json.load(f)
-            temp_config.update(file_config)
-    except FileNotFoundError:
-        print(f"Warning: Configuration file not found at {path}. Using default values.")
-    except json.JSONDecodeError:
-        print(f"Error: Could not decode JSON from {path}. Please check the file format.")
-        raise
-    
-    # Update the global config object
-    config.update(temp_config)
+    Returns:
+        Immutable AppConfig instance with validated configuration.
+
+    Raises:
+        json.JSONDecodeError: If the config file contains invalid JSON.
+    """
+    if config_path:
+        try:
+            with open(config_path, 'r') as f:
+                config_dict = json.load(f)
+                return AppConfig(**config_dict)
+        except FileNotFoundError:
+            print(f"Warning: Configuration file not found at {config_path}. Using defaults and environment variables.")
+            return AppConfig()
+        except json.JSONDecodeError as e:
+            print(f"Error: Could not decode JSON from {config_path}: {e}")
+            raise
+    else:
+        # Load from environment variables or use defaults
+        return AppConfig()

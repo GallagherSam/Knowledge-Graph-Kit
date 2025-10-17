@@ -17,7 +17,11 @@ def vector_store_manager_instance():
         mock_persistent_client.return_value.get_or_create_collection.return_value = mock_collection
 
         # Yield the VectorStore instance with the mocked client
-        yield VectorStore(), mock_collection
+        vector_store = VectorStore(
+            chroma_data_path="test_chroma_data",
+            embedding_model="all-MiniLM-L6-v2"
+        )
+        yield vector_store, mock_collection
 
 def test_semantic_search(vector_store_manager_instance):
     """
