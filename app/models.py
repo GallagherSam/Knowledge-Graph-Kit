@@ -19,6 +19,7 @@ class TaskProperties(BaseModel):
     status: Literal['todo', 'in_progress', 'in_review', 'cancelled', 'done'] = 'todo'
     tags: List[str] = []
     created_at: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc))
+    modified_at: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc))
     due_date: Optional[datetime.datetime] = None
 
 class NoteProperties(BaseModel):
@@ -34,6 +35,8 @@ class PersonProperties(BaseModel):
     name: str
     tags: List[str] = []
     metadata: Dict[str, Any] = {}
+    created_at: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc))
+    modified_at: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc))
 
 class ProjectProperties(BaseModel):
     """Properties specific to a Project node."""
@@ -41,6 +44,8 @@ class ProjectProperties(BaseModel):
     description: str
     tags: List[str] = []
     status: Literal['active', 'archived'] = 'active'
+    created_at: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc))
+    modified_at: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc))
 
 class Edge(BaseModel):
     """Model for an edge connecting two nodes."""

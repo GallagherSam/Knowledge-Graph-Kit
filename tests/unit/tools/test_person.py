@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, ANY
 from app.tools.person import Persons
 
 @pytest.fixture
@@ -20,12 +20,17 @@ def test_create_person(persons_instance, mock_crud, mock_db_session, mock_vector
     result = persons_instance.create_person(name="John Doe", tags=["friend"])
 
     assert result["properties"]["name"] == "John Doe"
-    mock_crud.create_node.assert_called_once_with(
-        db=mock_db_session,
-        vector_store=mock_vector_store_instance,
-        node_type="Person",
-        properties={"name": "John Doe", "tags": ["friend"], "metadata": {}}
-    )
+    # Check that create_node was called with the right parameters
+    # Use ANY for datetime fields since they're auto-generated
+    call_args = mock_crud.create_node.call_args
+    assert call_args[1]["db"] == mock_db_session
+    assert call_args[1]["vector_store"] == mock_vector_store_instance
+    assert call_args[1]["node_type"] == "Person"
+    assert call_args[1]["properties"]["name"] == "John Doe"
+    assert call_args[1]["properties"]["tags"] == ["friend"]
+    assert call_args[1]["properties"]["metadata"] == {}
+    assert "created_at" in call_args[1]["properties"]
+    assert "modified_at" in call_args[1]["properties"]
 
 def test_update_person(persons_instance, mock_crud, mock_db_session, mock_vector_store_instance):
     """Test updating a person successfully."""
