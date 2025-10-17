@@ -9,18 +9,8 @@ from typing import Dict, Any, Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from .config import config
-
 # Constants
 COLLECTION_NAME = "nodes"
-
-def get_chroma_data_path() -> str:
-    """Returns the Chroma data path from the config."""
-    return config["CHROMA_DATA_PATH"]
-
-def get_embedding_model() -> str:
-    """Returns the embedding model from the config."""
-    return config["EMBEDDING_MODEL"]
 
 
 class VectorStore:
@@ -28,15 +18,22 @@ class VectorStore:
     Manages all interactions with the ChromaDB vector store.
     """
 
-    def __init__(self):
+    def __init__(self, chroma_data_path: str, embedding_model: str):
         """
         Initializes the VectorStore by setting up the ChromaDB client,
         the embedding function, and creating or getting the collection.
+
+        Args:
+            chroma_data_path: Path to ChromaDB data directory
+            embedding_model: Name of the sentence-transformer model
         """
         try:
-            self.client = chromadb.PersistentClient(path=get_chroma_data_path(), settings=Settings(anonymized_telemetry=False))
+            self.client = chromadb.PersistentClient(
+                path=chroma_data_path,
+                settings=Settings(anonymized_telemetry=False)
+            )
             self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-                model_name=get_embedding_model()
+                model_name=embedding_model
             )
             self.collection = self.client.get_or_create_collection(
                 name=COLLECTION_NAME,

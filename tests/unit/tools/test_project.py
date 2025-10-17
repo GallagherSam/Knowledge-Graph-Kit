@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, ANY
 from app.tools.project import Projects
 
 @pytest.fixture
@@ -20,12 +20,18 @@ def test_create_project(projects_instance, mock_crud, mock_db_session, mock_vect
     result = projects_instance.create_project(name="New Project", description="A test project.", tags=["test"])
 
     assert result["properties"]["name"] == "New Project"
-    mock_crud.create_node.assert_called_once_with(
-        db=mock_db_session,
-        vector_store=mock_vector_store_instance,
-        node_type="Project",
-        properties={"name": "New Project", "description": "A test project.", "status": "active", "tags": ["test"]}
-    )
+    # Check that create_node was called with the right parameters
+    # Verify datetime fields are auto-generated
+    call_args = mock_crud.create_node.call_args
+    assert call_args[1]["db"] == mock_db_session
+    assert call_args[1]["vector_store"] == mock_vector_store_instance
+    assert call_args[1]["node_type"] == "Project"
+    assert call_args[1]["properties"]["name"] == "New Project"
+    assert call_args[1]["properties"]["description"] == "A test project."
+    assert call_args[1]["properties"]["status"] == "active"
+    assert call_args[1]["properties"]["tags"] == ["test"]
+    assert "created_at" in call_args[1]["properties"]
+    assert "modified_at" in call_args[1]["properties"]
 
 def test_update_project(projects_instance, mock_crud, mock_db_session, mock_vector_store_instance):
     """Test updating a project successfully."""

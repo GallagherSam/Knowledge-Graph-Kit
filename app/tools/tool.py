@@ -1,8 +1,9 @@
-from functools import lru_cache
 from contextlib import contextmanager
+from typing import Optional
 
 from app.database import init_db
 from app.vector_store import VectorStore
+from app.config import AppConfig
 
 from app.tools.note import Notes
 from app.tools.person import Persons
@@ -11,23 +12,42 @@ from app.tools.shared import Shared
 from app.tools.task import Tasks
 
 class Tools:
-    def __init__(self, mcp_instance):
+    def __init__(self, mcp_instance, config: AppConfig):
+        """
+        Initialize tools with configuration.
+
+        Args:
+            mcp_instance: The FastMCP instance
+            config: Application configuration
+        """
+        self.config = config
+        self._session_local = None
+        self._vector_store = None
+
+        # Initialize tools
         self.notes = Notes(mcp_instance, self)
         self.persons = Persons(mcp_instance, self)
         self.projects = Projects(mcp_instance, self)
         self.shared = Shared(mcp_instance, self)
         self.tasks = Tasks(mcp_instance, self)
-    
+
     @contextmanager
     def get_db(self):
-        session_local = init_db()
-        db = session_local()
+        if self._session_local is None:
+            self._session_local = init_db(self.config.SQLALCHEMY_DATABASE_URL)
+
+        db = self._session_local()
         try:
             yield db
         finally:
             db.close()
 
     @property
-    @lru_cache
     def vector_store(self):
-        return VectorStore()
+        """Lazy-load vector store singleton."""
+        if self._vector_store is None:
+            self._vector_store = VectorStore(
+                chroma_data_path=self.config.CHROMA_DATA_PATH,
+                embedding_model=self.config.EMBEDDING_MODEL
+            )
+        return self._vector_store
