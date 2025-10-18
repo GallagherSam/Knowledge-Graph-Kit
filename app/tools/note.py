@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app import crud
 from app.models import NoteProperties
@@ -7,18 +7,14 @@ from app.models import NoteProperties
 class Notes:
     def __init__(self, mcp_instance, provider):
         self.provider = provider
-    
+
         # Register tools
         mcp_instance.tool(self.create_note)
         mcp_instance.tool(self.update_note)
 
-
     def create_note(
-        self,
-        title: str,
-        content: str,
-        tags: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        self, title: str, content: str, tags: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Creates a new note with the given properties.
 
@@ -30,21 +26,22 @@ class Notes:
         Returns:
             A dictionary representing the newly created note node.
         """
-        properties = NoteProperties(
-            title=title,
-            content=content,
-            tags=tags or []
-        )
+        properties = NoteProperties(title=title, content=content, tags=tags or [])
         with self.provider.get_db() as db:
-            return crud.create_node(db=db, vector_store=self.provider.vector_store, node_type="Note", properties=properties.model_dump())
+            return crud.create_node(
+                db=db,
+                vector_store=self.provider.vector_store,
+                node_type="Note",
+                properties=properties.model_dump(),
+            )
 
     def update_note(
         self,
         note_id: str,
-        title: Optional[str] = None,
-        content: Optional[str] = None,
-        tags: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        title: str | None = None,
+        content: str | None = None,
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
         """
         Updates the properties of an existing note.
 
@@ -59,14 +56,21 @@ class Notes:
         """
         with self.provider.get_db() as db:
             properties_to_update = {
-                k: v for k, v in {
+                k: v
+                for k, v in {
                     "title": title,
                     "content": content,
                     "tags": tags,
-                }.items() if v is not None
+                }.items()
+                if v is not None
             }
 
             if not properties_to_update:
                 raise ValueError("No properties provided to update.")
 
-            return crud.update_node(db=db, vector_store=self.provider.vector_store, node_id=note_id, properties=properties_to_update)
+            return crud.update_node(
+                db=db,
+                vector_store=self.provider.vector_store,
+                node_id=note_id,
+                properties=properties_to_update,
+            )

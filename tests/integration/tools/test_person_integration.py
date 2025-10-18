@@ -18,7 +18,7 @@ def test_create_person_integration(tools_instance):
     assert created_person is not None
     assert "id" in created_person
     assert created_person["type"] == "Person"
-    
+
     properties = created_person["properties"]
     assert properties["name"] == name
     assert properties["tags"] == tags
@@ -27,19 +27,21 @@ def test_create_person_integration(tools_instance):
     # 4. Verify directly in the database
     with tools_instance.get_db() as db:
         from app.database import NodeModel
+
         db_node = db.query(NodeModel).filter(NodeModel.id == created_person["id"]).first()
-        
+
         assert db_node is not None
         assert db_node.type == "Person"
-        
+
         db_properties = db_node.properties
         assert db_properties["name"] == name
         assert db_properties["tags"] == tags
         assert db_properties["metadata"] == metadata
-        
+
         # Verify Pydantic model validation
         validated_props = PersonProperties(**db_properties)
         assert validated_props.name == name
+
 
 def test_update_person_integration(tools_instance):
     """
@@ -68,7 +70,7 @@ def test_update_person_integration(tools_instance):
     # 3. Assert: Check the dictionary returned by the tool.
     assert updated_person is not None
     assert updated_person["id"] == person_id
-    
+
     updated_properties = updated_person["properties"]
     assert updated_properties["name"] == new_name
     assert updated_properties["tags"] == initial_tags  # Should remain unchanged
@@ -77,14 +79,16 @@ def test_update_person_integration(tools_instance):
     # 4. Verify: Check the state directly in the database.
     with tools_instance.get_db() as db:
         from app.database import NodeModel
+
         db_node = db.query(NodeModel).filter(NodeModel.id == person_id).first()
-        
+
         assert db_node is not None
         db_properties = db_node.properties
-        
+
         assert db_properties["name"] == new_name
-        assert db_properties["tags"] == initial_tags # Verify unchanged property
+        assert db_properties["tags"] == initial_tags  # Verify unchanged property
         assert db_properties["metadata"] == new_metadata
+
 
 def test_person_search_integration(tools_instance):
     """
@@ -93,12 +97,10 @@ def test_person_search_integration(tools_instance):
     """
     # 1. Arrange: Create a set of diverse persons to search through.
     person1 = tools_instance.persons.create_person(
-        name="Alice Johnson",
-        tags=["developer", "frontend"]
+        name="Alice Johnson", tags=["developer", "frontend"]
     )
     person2 = tools_instance.persons.create_person(
-        name="Bob Williams",
-        tags=["developer", "backend"]
+        name="Bob Williams", tags=["developer", "backend"]
     )
 
     # 2. Act & Assert: Perform various search queries.

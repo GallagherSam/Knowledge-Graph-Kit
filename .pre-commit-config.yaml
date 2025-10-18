@@ -1,0 +1,36 @@
+# Pre-commit hooks for code quality
+# See https://pre-commit.com for more information
+
+repos:
+  # Ruff - Fast Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.1
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix]
+      # Run the formatter
+      - id: ruff-format
+
+  # Additional useful hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Prevent commits to main/master
+      - id: no-commit-to-branch
+        args: [--branch, main, --branch, master]
+      # Check for merge conflicts
+      - id: check-merge-conflict
+      # Check YAML files
+      - id: check-yaml
+      # Check TOML files
+      - id: check-toml
+      # Check JSON files
+      - id: check-json
+      # Fix trailing whitespace
+      - id: trailing-whitespace
+      # Fix end of files
+      - id: end-of-file-fixer
+      # Check for large files
+      - id: check-added-large-files
+        args: [--maxkb=1000]

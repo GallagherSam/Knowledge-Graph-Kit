@@ -1,5 +1,4 @@
 import json
-from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -9,27 +8,14 @@ class AppConfig(BaseSettings):
     """Application configuration with validation and immutability."""
 
     SQLALCHEMY_DATABASE_URL: str = Field(
-        default="sqlite:///./graph.db",
-        description="Database connection URL"
+        default="sqlite:///./graph.db", description="Database connection URL"
     )
-    CHROMA_DATA_PATH: str = Field(
-        default="chroma_data",
-        description="Path for ChromaDB storage"
-    )
+    CHROMA_DATA_PATH: str = Field(default="chroma_data", description="Path for ChromaDB storage")
     EMBEDDING_MODEL: str = Field(
-        default="all-MiniLM-L6-v2",
-        description="Sentence transformer model name"
+        default="all-MiniLM-L6-v2", description="Sentence transformer model name"
     )
-    HOST: str = Field(
-        default="0.0.0.0",
-        description="Server host address"
-    )
-    PORT: int = Field(
-        default=8000,
-        description="Server port number",
-        ge=1,
-        le=65535
-    )
+    HOST: str = Field(default="0.0.0.0", description="Server host address")
+    PORT: int = Field(default=8000, description="Server port number", ge=1, le=65535)
 
     model_config = {
         # Makes the config immutable
@@ -40,7 +26,7 @@ class AppConfig(BaseSettings):
     }
 
 
-def load_config(config_path: Optional[str] = None) -> AppConfig:
+def load_config(config_path: str | None = None) -> AppConfig:
     """
     Load configuration from JSON file or environment variables.
 
@@ -56,11 +42,14 @@ def load_config(config_path: Optional[str] = None) -> AppConfig:
     """
     if config_path:
         try:
-            with open(config_path, 'r') as f:
+            with open(config_path) as f:
                 config_dict = json.load(f)
                 return AppConfig(**config_dict)
         except FileNotFoundError:
-            print(f"Warning: Configuration file not found at {config_path}. Using defaults and environment variables.")
+            print(
+                f"Warning: Configuration file not found at {config_path}. "
+                "Using defaults and environment variables."
+            )
             return AppConfig()
         except json.JSONDecodeError as e:
             print(f"Error: Could not decode JSON from {config_path}: {e}")

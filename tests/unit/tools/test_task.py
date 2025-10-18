@@ -11,14 +11,20 @@ def mock_crud():
     with patch("app.tools.task.crud", autospec=True) as mock_crud_module:
         yield mock_crud_module
 
+
 @pytest.fixture
 def tasks_instance(mock_mcp, mock_provider):
     """Fixture to create an instance of the Tasks class for testing."""
     return Tasks(mock_mcp, mock_provider)
 
+
 def test_create_task(tasks_instance, mock_crud, mock_db_session, mock_vector_store_instance):
     """Test creating a task successfully."""
-    mock_crud.create_node.return_value = {"id": "1", "type": "Task", "properties": {"description": "New Task"}}
+    mock_crud.create_node.return_value = {
+        "id": "1",
+        "type": "Task",
+        "properties": {"description": "New Task"},
+    }
 
     result = tasks_instance.create_task(description="New Task", status="todo", tags=["work"])
 
@@ -29,6 +35,7 @@ def test_create_task(tasks_instance, mock_crud, mock_db_session, mock_vector_sto
     assert call_kwargs["vector_store"] == mock_vector_store_instance
     assert call_kwargs["node_type"] == "Task"
     assert call_kwargs["properties"]["description"] == "New Task"
+
 
 def test_update_task(tasks_instance, mock_crud, mock_db_session, mock_vector_store_instance):
     """Test updating a task successfully."""
@@ -41,13 +48,15 @@ def test_update_task(tasks_instance, mock_crud, mock_db_session, mock_vector_sto
         db=mock_db_session,
         vector_store=mock_vector_store_instance,
         node_id="1",
-        properties={"status": "done"}
+        properties={"status": "done"},
     )
+
 
 def test_update_task_no_properties(tasks_instance):
     """Test that updating a task with no properties raises a ValueError."""
     with pytest.raises(ValueError, match="No properties provided to update"):
         tasks_instance.update_task(task_id="1")
+
 
 def test_get_tasks_by_status(tasks_instance, mock_crud):
     """Test retrieving tasks and filtering them by status."""
@@ -56,7 +65,11 @@ def test_get_tasks_by_status(tasks_instance, mock_crud):
         {"id": "1", "type": "Task", "properties": {"description": "Task 1", "status": "done"}},
         {"id": "2", "type": "Task", "properties": {"description": "Task 2", "status": "todo"}},
         {"id": "3", "type": "Task", "properties": {"description": "Task 3", "status": "done"}},
-        {"id": "4", "type": "Task", "properties": {"description": "Task 4", "status": "in_progress"}},
+        {
+            "id": "4",
+            "type": "Task",
+            "properties": {"description": "Task 4", "status": "in_progress"},
+        },
     ]
     mock_crud.search_nodes.return_value = mock_tasks
 
@@ -65,8 +78,10 @@ def test_get_tasks_by_status(tasks_instance, mock_crud):
 
     # 3. Assert
     # Verify that search_nodes was called to fetch all tasks.
-    mock_crud.search_nodes.assert_called_once_with(db=tasks_instance.provider.get_db().__enter__(), node_type="Task")
-    
+    mock_crud.search_nodes.assert_called_once_with(
+        db=tasks_instance.provider.get_db().__enter__(), node_type="Task"
+    )
+
     # Verify that the result is correctly filtered.
     assert len(result) == 2
     assert result[0]["id"] == "1"

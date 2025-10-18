@@ -11,17 +11,17 @@ def vector_store_manager_instance():
     Provides a singleton instance of the VectorStore for testing.
     This ensures that the ChromaDB client is initialized only once per test module.
     """
-    with patch('chromadb.PersistentClient') as mock_persistent_client:
+    with patch("chromadb.PersistentClient") as mock_persistent_client:
         # Mock the ChromaDB client to avoid actual database interactions
         mock_collection = MagicMock()
         mock_persistent_client.return_value.get_or_create_collection.return_value = mock_collection
 
         # Yield the VectorStore instance with the mocked client
         vector_store = VectorStore(
-            chroma_data_path="test_chroma_data",
-            embedding_model="all-MiniLM-L6-v2"
+            chroma_data_path="test_chroma_data", embedding_model="all-MiniLM-L6-v2"
         )
         yield vector_store, mock_collection
+
 
 def test_semantic_search(vector_store_manager_instance):
     """
@@ -34,15 +34,16 @@ def test_semantic_search(vector_store_manager_instance):
         "ids": [["note_1"]],
         "documents": [["some document"]],
         "metadatas": [[{"type": "Note"}]],
-        "distances": [[0.1]]
+        "distances": [[0.1]],
     }
 
     # Perform a semantic search
     results = vector_store.semantic_search(query="test query")
 
     # Assert that the correct node ID is returned
-    assert results['ids'][0] == ["note_1"]
+    assert results["ids"][0] == ["note_1"]
     mock_collection.query.assert_called_once()
+
 
 def test_add_node_to_vector_store(vector_store_manager_instance):
     """
@@ -54,7 +55,7 @@ def test_add_node_to_vector_store(vector_store_manager_instance):
     node_data = {
         "id": "note_2",
         "type": "Note",
-        "properties": {"title": "Test Note", "content": "This is a test."}
+        "properties": {"title": "Test Note", "content": "This is a test."},
     }
 
     # Add the node to the vector store
@@ -65,6 +66,7 @@ def test_add_node_to_vector_store(vector_store_manager_instance):
     args, kwargs = mock_collection.add.call_args
     assert kwargs["ids"] == ["note_2"]
     assert "Type: Note. Title: Test Note. Content: This is a test." in kwargs["documents"]
+
 
 def test_delete_node_from_vector_store(vector_store_manager_instance):
     """

@@ -12,7 +12,7 @@ def test_create_task_integration(tools_instance):
     description = "Implement the new authentication feature."
     status = "in_progress"
     tags = ["feature", "security", "backend"]
-    due_date_obj = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=7)
+    due_date_obj = datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=7)
 
     # 2. Act
     created_task = tools_instance.tasks.create_task(
@@ -23,7 +23,7 @@ def test_create_task_integration(tools_instance):
     assert created_task is not None
     assert "id" in created_task
     assert created_task["type"] == "Task"
-    
+
     properties = created_task["properties"]
     assert properties["description"] == description
     assert properties["status"] == status
@@ -32,19 +32,21 @@ def test_create_task_integration(tools_instance):
     # 4. Verify directly in the database
     with tools_instance.get_db() as db:
         from app.database import NodeModel
+
         db_node = db.query(NodeModel).filter(NodeModel.id == created_task["id"]).first()
-        
+
         assert db_node is not None
         assert db_node.type == "Task"
-        
+
         db_properties = db_node.properties
         assert db_properties["description"] == description
         assert db_properties["status"] == status
         assert db_properties["tags"] == tags
-        
+
         # Verify Pydantic model validation
         validated_props = TaskProperties(**db_properties)
         assert validated_props.description == description
+
 
 def test_update_task_integration(tools_instance):
     """
@@ -72,7 +74,7 @@ def test_update_task_integration(tools_instance):
     # 3. Assert: Check the dictionary returned by the tool.
     assert updated_task is not None
     assert updated_task["id"] == task_id
-    
+
     updated_properties = updated_task["properties"]
     assert updated_properties["description"] == new_description
     assert updated_properties["status"] == new_status
@@ -81,14 +83,16 @@ def test_update_task_integration(tools_instance):
     # 4. Verify: Check the state directly in the database.
     with tools_instance.get_db() as db:
         from app.database import NodeModel
+
         db_node = db.query(NodeModel).filter(NodeModel.id == task_id).first()
-        
+
         assert db_node is not None
         db_properties = db_node.properties
-        
+
         assert db_properties["description"] == new_description
         assert db_properties["status"] == new_status
         assert db_properties["tags"] == initial_tags
+
 
 def test_task_search_integration(tools_instance):
     """
@@ -97,12 +101,10 @@ def test_task_search_integration(tools_instance):
     """
     # 1. Arrange: Create a set of diverse tasks to search through.
     task1 = tools_instance.tasks.create_task(
-        description="Refactor the user authentication module.",
-        tags=["backend", "refactor"]
+        description="Refactor the user authentication module.", tags=["backend", "refactor"]
     )
     task2 = tools_instance.tasks.create_task(
-        description="Design the new dashboard layout.",
-        tags=["frontend", "design"]
+        description="Design the new dashboard layout.", tags=["frontend", "design"]
     )
 
     # 2. Act & Assert: Perform various search queries.
@@ -121,27 +123,18 @@ def test_task_search_integration(tools_instance):
     results_nothing = tools_instance.shared.search_nodes(query="nonexistent", node_type="Task")
     assert len(results_nothing) == 0
 
+
 def test_get_tasks_by_status_integration(tools_instance):
     """
     Integration test for the get_tasks_by_status tool.
     Verifies that tasks are correctly filtered by their status property.
     """
     # 1. Arrange: Create a set of tasks with different statuses.
-    task_done_1 = tools_instance.tasks.create_task(
-        description="Completed task 1",
-        status="done"
-    )
-    task_todo = tools_instance.tasks.create_task(
-        description="A task to be done",
-        status="todo"
-    )
-    task_done_2 = tools_instance.tasks.create_task(
-        description="Completed task 2",
-        status="done"
-    )
+    task_done_1 = tools_instance.tasks.create_task(description="Completed task 1", status="done")
+    tools_instance.tasks.create_task(description="A task to be done", status="todo")
+    task_done_2 = tools_instance.tasks.create_task(description="Completed task 2", status="done")
     task_in_progress = tools_instance.tasks.create_task(
-        description="A task currently in progress",
-        status="in_progress"
+        description="A task currently in progress", status="in_progress"
     )
 
     # 2. Act: Retrieve tasks with the 'done' status.

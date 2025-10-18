@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app import crud
 from app.models import PersonProperties
@@ -13,9 +13,9 @@ class Persons:
     def create_person(
         self,
         name: str,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Creates a new person node.
 
@@ -28,25 +28,21 @@ class Persons:
             A dictionary representing the newly created person node.
         """
         with self.provider.get_db() as db:
-            properties = PersonProperties(
-                name=name,
-                tags=tags or [],
-                metadata=metadata or {}
-            )
+            properties = PersonProperties(name=name, tags=tags or [], metadata=metadata or {})
             return crud.create_node(
                 db=db,
                 vector_store=self.provider.vector_store,
                 node_type="Person",
-                properties=properties.model_dump()
+                properties=properties.model_dump(),
             )
 
     def update_person(
         self,
         person_id: str,
-        name: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        name: str | None = None,
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Updates the properties of an existing person.
 
@@ -61,11 +57,13 @@ class Persons:
         """
         with self.provider.get_db() as db:
             properties_to_update = {
-                k: v for k, v in {
+                k: v
+                for k, v in {
                     "name": name,
                     "tags": tags,
                     "metadata": metadata,
-                }.items() if v is not None
+                }.items()
+                if v is not None
             }
 
             if not properties_to_update:
@@ -75,5 +73,5 @@ class Persons:
                 db=db,
                 vector_store=self.provider.vector_store,
                 node_id=person_id,
-                properties=properties_to_update
+                properties=properties_to_update,
             )

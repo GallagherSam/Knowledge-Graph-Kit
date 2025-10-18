@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from app import crud
 from app.models import ProjectProperties
@@ -14,9 +14,9 @@ class Projects:
         self,
         name: str,
         description: str,
-        status: Literal['active', 'archived'] = 'active',
-        tags: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        status: Literal["active", "archived"] = "active",
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
         """
         Creates a new project node.
 
@@ -31,26 +31,23 @@ class Projects:
         """
         with self.provider.get_db() as db:
             properties = ProjectProperties(
-                name=name,
-                description=description,
-                status=status,
-                tags=tags or []
+                name=name, description=description, status=status, tags=tags or []
             )
             return crud.create_node(
                 db=db,
                 vector_store=self.provider.vector_store,
                 node_type="Project",
-                properties=properties.model_dump()
+                properties=properties.model_dump(),
             )
 
     def update_project(
         self,
         project_id: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        status: Optional[Literal['active', 'archived']] = None,
-        tags: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        name: str | None = None,
+        description: str | None = None,
+        status: Literal["active", "archived"] | None = None,
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
         """
         Updates the properties of an existing project.
 
@@ -66,12 +63,14 @@ class Projects:
         """
         with self.provider.get_db() as db:
             properties_to_update = {
-                k: v for k, v in {
+                k: v
+                for k, v in {
                     "name": name,
                     "description": description,
                     "status": status,
                     "tags": tags,
-                }.items() if v is not None
+                }.items()
+                if v is not None
             }
 
             if not properties_to_update:
@@ -81,5 +80,5 @@ class Projects:
                 db=db,
                 vector_store=self.provider.vector_store,
                 node_id=project_id,
-                properties=properties_to_update
+                properties=properties_to_update,
             )

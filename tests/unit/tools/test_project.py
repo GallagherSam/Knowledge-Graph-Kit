@@ -11,16 +11,24 @@ def mock_crud():
     with patch("app.tools.project.crud", autospec=True) as mock_crud_module:
         yield mock_crud_module
 
+
 @pytest.fixture
 def projects_instance(mock_mcp, mock_provider):
     """Fixture to create an instance of the Projects class for testing."""
     return Projects(mock_mcp, mock_provider)
 
+
 def test_create_project(projects_instance, mock_crud, mock_db_session, mock_vector_store_instance):
     """Test creating a project successfully."""
-    mock_crud.create_node.return_value = {"id": "1", "type": "Project", "properties": {"name": "New Project"}}
+    mock_crud.create_node.return_value = {
+        "id": "1",
+        "type": "Project",
+        "properties": {"name": "New Project"},
+    }
 
-    result = projects_instance.create_project(name="New Project", description="A test project.", tags=["test"])
+    result = projects_instance.create_project(
+        name="New Project", description="A test project.", tags=["test"]
+    )
 
     assert result["properties"]["name"] == "New Project"
     # Check that create_node was called with the right parameters
@@ -36,6 +44,7 @@ def test_create_project(projects_instance, mock_crud, mock_db_session, mock_vect
     assert "created_at" in call_args[1]["properties"]
     assert "modified_at" in call_args[1]["properties"]
 
+
 def test_update_project(projects_instance, mock_crud, mock_db_session, mock_vector_store_instance):
     """Test updating a project successfully."""
     mock_crud.update_node.return_value = {"id": "1", "properties": {"status": "archived"}}
@@ -47,8 +56,9 @@ def test_update_project(projects_instance, mock_crud, mock_db_session, mock_vect
         db=mock_db_session,
         vector_store=mock_vector_store_instance,
         node_id="1",
-        properties={"status": "archived"}
+        properties={"status": "archived"},
     )
+
 
 def test_update_project_no_properties(projects_instance):
     """Test that updating a project with no properties raises a ValueError."""

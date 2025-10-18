@@ -9,15 +9,18 @@ def mock_mcp():
     """Fixture to mock the mcp instance."""
     return MagicMock()
 
+
 @pytest.fixture
 def mock_db_session():
     """Fixture for a mock database session."""
     return MagicMock()
 
+
 @pytest.fixture
 def mock_vector_store_instance():
     """Fixture for a mock vector store instance."""
     return MagicMock()
+
 
 @pytest.fixture
 def mock_provider(mock_db_session, mock_vector_store_instance):

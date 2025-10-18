@@ -5,6 +5,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()
 
+
 def init_db(database_url: str):
     """
     Initializes the database connection and creates tables if they don't exist.
@@ -15,9 +16,7 @@ def init_db(database_url: str):
     Returns:
         A sessionmaker factory for creating database sessions.
     """
-    engine = create_engine(
-        database_url, connect_args={"check_same_thread": False}
-    )
+    engine = create_engine(database_url, connect_args={"check_same_thread": False})
 
     # Create all tables if they don't exist
     Base.metadata.create_all(bind=engine)
@@ -31,6 +30,7 @@ class NodeModel(Base):
     id = Column(String, primary_key=True, index=True)
     type = Column(String, nullable=False, index=True)  # Indexed for type filtering
     properties = Column(JSON, nullable=False)
+
 
 class EdgeModel(Base):
     __tablename__ = "edges"
