@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from app import crud
 from app.models import TaskProperties
@@ -15,10 +15,10 @@ class Tasks:
     def create_task(
         self,
         description: str,
-        status: Literal['todo', 'in_progress', 'in_review', 'cancelled', 'done'] = 'todo',
-        tags: Optional[List[str]] = None,
-        due_date: Optional[datetime.datetime] = None,
-    ) -> Dict[str, Any]:
+        status: Literal["todo", "in_progress", "in_review", "cancelled", "done"] = "todo",
+        tags: list[str] | None = None,
+        due_date: datetime.datetime | None = None,
+    ) -> dict[str, Any]:
         """
         Creates a new task with the given properties.
 
@@ -33,26 +33,23 @@ class Tasks:
         """
         with self.provider.get_db() as db:
             properties = TaskProperties(
-                description=description,
-                status=status,
-                tags=tags or [],
-                due_date=due_date
+                description=description, status=status, tags=tags or [], due_date=due_date
             )
             return crud.create_node(
                 db=db,
                 vector_store=self.provider.vector_store,
                 node_type="Task",
-                properties=properties.model_dump()
+                properties=properties.model_dump(),
             )
 
     def update_task(
         self,
         task_id: str,
-        description: Optional[str] = None,
-        status: Optional[Literal['todo', 'in_progress', 'in_review', 'cancelled', 'done']] = None,
-        tags: Optional[List[str]] = None,
-        due_date: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        description: str | None = None,
+        status: Literal["todo", "in_progress", "in_review", "cancelled", "done"] | None = None,
+        tags: list[str] | None = None,
+        due_date: str | None = None,
+    ) -> dict[str, Any]:
         """
         Updates the properties of an existing task.
 
@@ -68,12 +65,14 @@ class Tasks:
         """
         with self.provider.get_db() as db:
             properties_to_update = {
-                k: v for k, v in {
+                k: v
+                for k, v in {
                     "description": description,
                     "status": status,
                     "tags": tags,
                     "due_date": due_date,
-                }.items() if v is not None
+                }.items()
+                if v is not None
             }
 
             if not properties_to_update:
@@ -83,13 +82,13 @@ class Tasks:
                 db=db,
                 vector_store=self.provider.vector_store,
                 node_id=task_id,
-                properties=properties_to_update
+                properties=properties_to_update,
             )
 
     def get_tasks_by_status(
         self,
-        status: Literal['todo', 'in_progress', 'in_review', 'cancelled', 'done'],
-    ) -> List[Dict[str, Any]]:
+        status: Literal["todo", "in_progress", "in_review", "cancelled", "done"],
+    ) -> list[dict[str, Any]]:
         """
         Retrieves tasks filtered by their status.
 
@@ -102,6 +101,5 @@ class Tasks:
         with self.provider.get_db() as db:
             all_tasks = crud.search_nodes(db=db, node_type="Task")
             return [
-                task for task in all_tasks
-                if task.get("properties", {}).get("status") == status
+                task for task in all_tasks if task.get("properties", {}).get("status") == status
             ]

@@ -47,6 +47,6 @@ class Tools:
         if self._vector_store is None:
             self._vector_store = VectorStore(
                 chroma_data_path=self.config.CHROMA_DATA_PATH,
-                embedding_model=self.config.EMBEDDING_MODEL
+                embedding_model=self.config.EMBEDDING_MODEL,
             )
         return self._vector_store

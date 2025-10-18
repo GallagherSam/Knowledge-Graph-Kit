@@ -148,4 +148,3 @@ To add a new type of node to the knowledge graph (e.g., "Document"), follow the 
 4.  **Register the new tool class** by importing it and instantiating it in `app/tools/tool.py` within the `Tools` class constructor.
 
 By following this pattern, you can easily extend the Knowledge Graph Kit to support any kind of interconnected data your application requires.
-

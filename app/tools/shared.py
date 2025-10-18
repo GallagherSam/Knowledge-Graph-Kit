@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app import crud
 from app.models import AnyNode
@@ -32,8 +32,8 @@ class Shared:
             return crud.create_edge(db=db, source_id=source_id, target_id=target_id, label=label)
 
     def get_related_nodes(
-        self, node_id: str, label: Optional[str] = None, depth: int = 1
-    ) -> List[Dict[str, Any]]:
+        self, node_id: str, label: str | None = None, depth: int = 1
+    ) -> list[dict[str, Any]]:
         """
         Finds all nodes connected to a given node, up to a specified depth.
 
@@ -50,10 +50,10 @@ class Shared:
 
     def search_nodes(
         self,
-        query: Optional[str] = None,
-        node_type: Optional[AnyNode] = None,
-        tags: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
+        query: str | None = None,
+        node_type: AnyNode | None = None,
+        tags: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Searches for nodes based on a query string, type, and tags.
 
@@ -68,7 +68,7 @@ class Shared:
         with self.provider.get_db() as db:
             return crud.search_nodes(db=db, query=query, node_type=node_type, tags=tags)
 
-    def get_all_tags(self) -> List[str]:
+    def get_all_tags(self) -> list[str]:
         """
         Retrieves a sorted list of all unique tags from all nodes.
 
@@ -104,9 +104,11 @@ class Shared:
             True if the edge was successfully deleted, False otherwise.
         """
         with self.provider.get_db() as db:
-            return crud.delete_edge_by_nodes(db=db, source_id=source_id, target_id=target_id, label=label)
+            return crud.delete_edge_by_nodes(
+                db=db, source_id=source_id, target_id=target_id, label=label
+            )
 
-    def rename_tag(self, old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
+    def rename_tag(self, old_tag: str, new_tag: str) -> list[dict[str, Any]]:
         """
         Renames a specific tag on all nodes where it is present.
 
@@ -123,8 +125,8 @@ class Shared:
     def semantic_search(
         self,
         query: str,
-        node_type: Optional[AnyNode] = None,
-    ) -> List[Dict[str, Any]]:
+        node_type: AnyNode | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Performs a semantic search for nodes based on a query string.
 
@@ -139,21 +141,21 @@ class Shared:
         with self.provider.get_db() as db:
             vector_store = self.provider.vector_store
             search_results = vector_store.semantic_search(query=query, node_type=node_type)
-            
+
             if not search_results:
                 return []
 
             # The results from ChromaDB are in a list of lists, one for each query.
             # Since we only send one query, we take the first list of IDs.
             node_ids = search_results["ids"][0]
-            
+
             # Fetch the full node objects from the database
             nodes = crud.get_nodes_by_ids(db=db, node_ids=node_ids)
 
             # Create a dictionary for quick lookups of nodes by their ID
-            nodes_by_id = {node['id']: node for node in nodes}
+            nodes_by_id = {node["id"]: node for node in nodes}
 
             # Reorder the nodes based on the semantic search results order
             ordered_nodes = [nodes_by_id[id] for id in node_ids if id in nodes_by_id]
-            
+
             return ordered_nodes

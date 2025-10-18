@@ -21,7 +21,7 @@ def test_create_project_integration(tools_instance):
     assert created_project is not None
     assert "id" in created_project
     assert created_project["type"] == "Project"
-    
+
     properties = created_project["properties"]
     assert properties["name"] == name
     assert properties["description"] == description
@@ -31,20 +31,22 @@ def test_create_project_integration(tools_instance):
     # 4. Verify directly in the database
     with tools_instance.get_db() as db:
         from app.database import NodeModel
+
         db_node = db.query(NodeModel).filter(NodeModel.id == created_project["id"]).first()
-        
+
         assert db_node is not None
         assert db_node.type == "Project"
-        
+
         db_properties = db_node.properties
         assert db_properties["name"] == name
         assert db_properties["description"] == description
         assert db_properties["status"] == status
         assert db_properties["tags"] == tags
-        
+
         # Verify Pydantic model validation
         validated_props = ProjectProperties(**db_properties)
         assert validated_props.name == name
+
 
 def test_update_project_integration(tools_instance):
     """
@@ -73,7 +75,7 @@ def test_update_project_integration(tools_instance):
     # 3. Assert: Check the dictionary returned by the tool.
     assert updated_project is not None
     assert updated_project["id"] == project_id
-    
+
     updated_properties = updated_project["properties"]
     assert updated_properties["name"] == initial_name  # Should remain unchanged
     assert updated_properties["description"] == new_description
@@ -83,15 +85,17 @@ def test_update_project_integration(tools_instance):
     # 4. Verify: Check the state directly in the database.
     with tools_instance.get_db() as db:
         from app.database import NodeModel
+
         db_node = db.query(NodeModel).filter(NodeModel.id == project_id).first()
-        
+
         assert db_node is not None
         db_properties = db_node.properties
-        
+
         assert db_properties["name"] == initial_name
         assert db_properties["description"] == new_description
         assert db_properties["status"] == new_status
         assert db_properties["tags"] == initial_tags
+
 
 def test_project_search_integration(tools_instance):
     """
@@ -102,12 +106,12 @@ def test_project_search_integration(tools_instance):
     project1 = tools_instance.projects.create_project(
         name="Data Migration Initiative",
         description="Moving legacy data to a new cloud platform.",
-        tags=["data", "cloud"]
+        tags=["data", "cloud"],
     )
     project2 = tools_instance.projects.create_project(
         name="Frontend Redesign",
         description="A complete overhaul of the user interface.",
-        tags=["ui", "design", "frontend"]
+        tags=["ui", "design", "frontend"],
     )
 
     # 2. Act & Assert: Perform various search queries.

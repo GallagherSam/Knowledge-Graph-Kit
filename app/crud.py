@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Dict, List, Optional, Type
+from typing import Any
 
 from sqlalchemy import String
 from sqlalchemy.orm import Session
@@ -17,14 +17,19 @@ from app.models import (
 from app.vector_store import VectorStore
 
 # A mapping from the string representation of a node type to its Pydantic model class.
-PROPERTIES_MODELS: Dict[AnyNode, Type[TaskProperties | NoteProperties | PersonProperties | ProjectProperties]] = {
+PROPERTIES_MODELS: dict[
+    AnyNode, type[TaskProperties | NoteProperties | PersonProperties | ProjectProperties]
+] = {
     "Task": TaskProperties,
     "Note": NoteProperties,
     "Person": PersonProperties,
     "Project": ProjectProperties,
 }
 
-def create_node(db: Session, vector_store: VectorStore, node_type: AnyNode, properties: Dict[str, Any]) -> Dict[str, Any]:
+
+def create_node(
+    db: Session, vector_store: VectorStore, node_type: AnyNode, properties: dict[str, Any]
+) -> dict[str, Any]:
     """
     Creates a new node, validates its properties, and saves it to the database.
 
@@ -47,11 +52,12 @@ def create_node(db: Session, vector_store: VectorStore, node_type: AnyNode, prop
     db.commit()
     db.refresh(db_node)
     created_node = {"id": db_node.id, "type": db_node.type, "properties": db_node.properties}
-    
+
     vector_store.add_node(created_node)
     return created_node
 
-def get_nodes(db: Session, node_type: Optional[AnyNode] = None, **kwargs) -> List[Dict[str, Any]]:
+
+def get_nodes(db: Session, node_type: AnyNode | None = None, **kwargs) -> list[dict[str, Any]]:
     """
     Retrieves nodes from the state, with optional filtering by type and properties.
 
@@ -64,10 +70,10 @@ def get_nodes(db: Session, node_type: Optional[AnyNode] = None, **kwargs) -> Lis
         A list of nodes that match the filter criteria.
     """
     query = db.query(NodeModel)
-    
+
     if node_type:
         query = query.filter(NodeModel.type == node_type)
-        
+
     all_nodes = [{"id": n.id, "type": n.type, "properties": n.properties} for n in query.all()]
 
     if not kwargs:
@@ -80,7 +86,8 @@ def get_nodes(db: Session, node_type: Optional[AnyNode] = None, **kwargs) -> Lis
             filtered_nodes.append(node)
     return filtered_nodes
 
-def get_nodes_by_ids(db: Session, node_ids: List[str]) -> List[Dict[str, Any]]:
+
+def get_nodes_by_ids(db: Session, node_ids: list[str]) -> list[dict[str, Any]]:
     """
     Retrieves nodes from the state by their IDs.
 
@@ -94,7 +101,10 @@ def get_nodes_by_ids(db: Session, node_ids: List[str]) -> List[Dict[str, Any]]:
     nodes = db.query(NodeModel).filter(NodeModel.id.in_(node_ids)).all()
     return [{"id": n.id, "type": n.type, "properties": n.properties} for n in nodes]
 
-def update_node(db: Session, vector_store: VectorStore, node_id: str, properties: Dict[str, Any]) -> Dict[str, Any]:
+
+def update_node(
+    db: Session, vector_store: VectorStore, node_id: str, properties: dict[str, Any]
+) -> dict[str, Any]:
     """
     Updates the properties of a specific node.
 
@@ -106,7 +116,7 @@ def update_node(db: Session, vector_store: VectorStore, node_id: str, properties
 
     Returns:
         The updated node as a dictionary.
-        
+
     Raises:
         ValueError: If the node with the given ID is not found.
     """
@@ -117,12 +127,12 @@ def update_node(db: Session, vector_store: VectorStore, node_id: str, properties
 
     updated_properties = db_node.properties.copy()
     updated_properties.update(properties)
-    
-    updated_properties["modified_at"] = datetime.datetime.now(datetime.timezone.utc)
+
+    updated_properties["modified_at"] = datetime.datetime.now(datetime.UTC)
     node_type = db_node.type
     PropertiesModel = PROPERTIES_MODELS[node_type]
     validated_properties = PropertiesModel(**updated_properties).model_dump(mode="json")
-    
+
     db_node.properties = validated_properties
     db.commit()
     db.refresh(db_node)
@@ -130,6 +140,7 @@ def update_node(db: Session, vector_store: VectorStore, node_id: str, properties
 
     vector_store.update_node(updated_node)
     return updated_node
+
 
 def delete_node(db: Session, vector_store: VectorStore, node_id: str) -> bool:
     """
@@ -139,7 +150,7 @@ def delete_node(db: Session, vector_store: VectorStore, node_id: str) -> bool:
         db: The SQLAlchemy database session.
         vector_store: The vector store instance.
         node_id: The ID of the node to delete.
-    
+
     Returns:
         True if the node was deleted, False otherwise.
     """
@@ -147,13 +158,16 @@ def delete_node(db: Session, vector_store: VectorStore, node_id: str) -> bool:
     if db_node:
         db.delete(db_node)
         # Also delete connected edges
-        db.query(EdgeModel).filter((EdgeModel.source_id == node_id) | (EdgeModel.target_id == node_id)).delete(synchronize_session=False)
+        db.query(EdgeModel).filter(
+            (EdgeModel.source_id == node_id) | (EdgeModel.target_id == node_id)
+        ).delete(synchronize_session=False)
         db.commit()
         vector_store.delete_node(node_id)
         return True
     return False
 
-def create_edge(db: Session, source_id: str, target_id: str, label: str) -> Dict[str, Any]:
+
+def create_edge(db: Session, source_id: str, target_id: str, label: str) -> dict[str, Any]:
     """
     Creates a new edge between two nodes and saves it to the database.
 
@@ -165,7 +179,7 @@ def create_edge(db: Session, source_id: str, target_id: str, label: str) -> Dict
 
     Returns:
         The created edge as a dictionary.
-        
+
     Raises:
         ValueError: If either the source or target node does not exist.
     """
@@ -184,7 +198,13 @@ def create_edge(db: Session, source_id: str, target_id: str, label: str) -> Dict
     db.add(db_edge)
     db.commit()
     db.refresh(db_edge)
-    return {"id": db_edge.id, "source_id": db_edge.source_id, "target_id": db_edge.target_id, "label": db_edge.label}
+    return {
+        "id": db_edge.id,
+        "source_id": db_edge.source_id,
+        "target_id": db_edge.target_id,
+        "label": db_edge.label,
+    }
+
 
 def delete_edge(db: Session, edge_id: str) -> bool:
     """
@@ -204,9 +224,10 @@ def delete_edge(db: Session, edge_id: str) -> bool:
         return True
     return False
 
+
 def get_connected_nodes(
-    db: Session, node_id: str, label: Optional[str] = None, depth: int = 1
-) -> List[Dict[str, Any]]:
+    db: Session, node_id: str, label: str | None = None, depth: int = 1
+) -> list[dict[str, Any]]:
     """
     Retrieves all nodes connected to a given node up to a specified depth.
 
@@ -256,17 +277,22 @@ def get_connected_nodes(
         for node in nodes:
             if node.id not in visited_node_ids:
                 visited_node_ids.add(node.id)
-                connected_nodes[node.id] = {"id": node.id, "type": node.type, "properties": node.properties}
+                connected_nodes[node.id] = {
+                    "id": node.id,
+                    "type": node.type,
+                    "properties": node.properties,
+                }
                 queue.append((node.id, current_depth + 1))
 
     return list(connected_nodes.values())
 
+
 def search_nodes(
     db: Session,
-    query: Optional[str] = None,
-    node_type: Optional[AnyNode] = None,
-    tags: Optional[List[str]] = None,
-) -> List[Dict[str, Any]]:
+    query: str | None = None,
+    node_type: AnyNode | None = None,
+    tags: list[str] | None = None,
+) -> list[dict[str, Any]]:
     """
     Searches for nodes based on a query string, type, and tags.
 
@@ -299,23 +325,25 @@ def search_nodes(
         for node in nodes:
             props = node.get("properties", {})
             node_type = node.get("type")
-            
+
             if node_type == "Task" and query in props.get("description", "").lower():
                 filtered_nodes.append(node)
             elif node_type == "Note" and (
-                query in props.get("title", "").lower()
-                or query in props.get("content", "").lower()
+                query in props.get("title", "").lower() or query in props.get("content", "").lower()
             ):
                 filtered_nodes.append(node)
             elif node_type == "Person" and query in props.get("name", "").lower():
                 filtered_nodes.append(node)
-            elif node_type == "Project" and (query in props.get("name", "").lower() or query in props.get("description")):
+            elif node_type == "Project" and (
+                query in props.get("name", "").lower() or query in props.get("description")
+            ):
                 filtered_nodes.append(node)
         return filtered_nodes
 
     return nodes
 
-def get_all_tags(db: Session) -> List[str]:
+
+def get_all_tags(db: Session) -> list[str]:
     """
     Retrieves a sorted list of all unique tags from all nodes.
 
@@ -333,7 +361,7 @@ def get_all_tags(db: Session) -> List[str]:
         if tags:
             all_tags.update(tags)
 
-    return sorted(list(all_tags))
+    return sorted(all_tags)
 
 
 def delete_edge_by_nodes(db: Session, source_id: str, target_id: str, label: str) -> bool:
@@ -349,7 +377,9 @@ def delete_edge_by_nodes(db: Session, source_id: str, target_id: str, label: str
     Returns:
         True if the edge was found and deleted, False otherwise.
     """
-    edge_to_delete = db.query(EdgeModel).filter_by(source_id=source_id, target_id=target_id, label=label).first()
+    edge_to_delete = (
+        db.query(EdgeModel).filter_by(source_id=source_id, target_id=target_id, label=label).first()
+    )
 
     if edge_to_delete:
         db.delete(edge_to_delete)
@@ -358,7 +388,7 @@ def delete_edge_by_nodes(db: Session, source_id: str, target_id: str, label: str
     return False
 
 
-def rename_tag(db: Session, old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
+def rename_tag(db: Session, old_tag: str, new_tag: str) -> list[dict[str, Any]]:
     """
     Renames a tag on all nodes that have it.
 
@@ -370,7 +400,9 @@ def rename_tag(db: Session, old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
     Returns:
         A list of nodes that were updated.
     """
-    nodes_to_update = db.query(NodeModel).filter(NodeModel.properties.cast(String).like(f'%"{old_tag}"%')).all()
+    nodes_to_update = (
+        db.query(NodeModel).filter(NodeModel.properties.cast(String).like(f'%"{old_tag}"%')).all()
+    )
     updated_nodes = []
 
     for node in nodes_to_update:
@@ -381,7 +413,7 @@ def rename_tag(db: Session, old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
             # Create a new list of tags with the old tag replaced
             new_tags = [new_tag if tag == old_tag else tag for tag in tags]
             # Remove duplicates if new_tag was already present
-            new_tags = sorted(list(set(new_tags)))
+            new_tags = sorted(set(new_tags))
 
             # Update the node's properties
             updated_properties = properties.copy()
@@ -393,7 +425,9 @@ def rename_tag(db: Session, old_tag: str, new_tag: str) -> List[Dict[str, Any]]:
 
             node.properties = validated_properties
             db.add(node)
-            updated_nodes.append({"id": node.id, "type": node.type, "properties": validated_properties})
+            updated_nodes.append(
+                {"id": node.id, "type": node.type, "properties": validated_properties}
+            )
 
     if updated_nodes:
         db.commit()

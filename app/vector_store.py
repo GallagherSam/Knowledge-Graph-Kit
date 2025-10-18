@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 import chromadb
 from chromadb import QueryResult
@@ -30,8 +30,7 @@ class VectorStore:
         """
         try:
             self.client = chromadb.PersistentClient(
-                path=chroma_data_path,
-                settings=Settings(anonymized_telemetry=False)
+                path=chroma_data_path, settings=Settings(anonymized_telemetry=False)
             )
             self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
                 model_name=embedding_model
@@ -45,7 +44,7 @@ class VectorStore:
             logger.error(f"Failed to initialize ChromaDB: {e}")
             raise
 
-    def _generate_embedding_text(self, node: Dict[str, Any]) -> str:
+    def _generate_embedding_text(self, node: dict[str, Any]) -> str:
         """
         Generates a combined text from a node's properties for embedding.
 
@@ -71,7 +70,7 @@ class VectorStore:
 
         return ". ".join(text_parts)
 
-    def add_node(self, node: Dict[str, Any]):
+    def add_node(self, node: dict[str, Any]):
         """
         Adds a single node to the vector store.
 
@@ -89,7 +88,7 @@ class VectorStore:
         except Exception as e:
             logger.error(f"Failed to add node {node['id']} to vector store: {e}")
 
-    def update_node(self, node: Dict[str, Any]):
+    def update_node(self, node: dict[str, Any]):
         """
         Updates a node in the vector store.
 
@@ -123,7 +122,7 @@ class VectorStore:
     def semantic_search(
         self,
         query: str,
-        node_type: Optional[str] = None,
+        node_type: str | None = None,
         n_results: int = 20,
     ) -> QueryResult | None:
         """

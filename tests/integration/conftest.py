@@ -1,4 +1,3 @@
-
 import shutil
 import tempfile
 from contextlib import contextmanager
@@ -16,6 +15,7 @@ from app.vector_store import VectorStore
 # Use an in-memory SQLite database for testing
 TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
+
 @pytest.fixture(scope="function")
 def test_config():
     """Provide a test configuration with temporary directories."""
@@ -26,7 +26,7 @@ def test_config():
         CHROMA_DATA_PATH=temp_chroma,
         EMBEDDING_MODEL="all-MiniLM-L6-v2",
         HOST="localhost",
-        PORT=8000
+        PORT=8000,
     )
 
     yield config
@@ -34,14 +34,13 @@ def test_config():
     # Cleanup
     shutil.rmtree(temp_chroma, ignore_errors=True)
 
+
 @pytest.fixture(scope="function")
 def test_db():
     """
     Fixture to set up a temporary, in-memory SQLite database for a test function.
     """
-    engine = create_engine(
-        TEST_SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-    )
+    engine = create_engine(TEST_SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
     # Create the database tables
@@ -55,14 +54,14 @@ def test_db():
         # Drop the database tables
         Base.metadata.drop_all(bind=engine)
 
+
 @pytest.fixture(scope="function")
 def test_vector_store(test_config):
     """
     Fixture to set up a temporary vector store for a test function and clean it up afterward.
     """
     vector_store_instance = VectorStore(
-        chroma_data_path=test_config.CHROMA_DATA_PATH,
-        embedding_model=test_config.EMBEDDING_MODEL
+        chroma_data_path=test_config.CHROMA_DATA_PATH, embedding_model=test_config.EMBEDDING_MODEL
     )
     yield vector_store_instance
 
@@ -80,9 +79,10 @@ def tools_instance(test_db, test_vector_store, test_config):
         yield test_db
 
     # Patch the get_db method and the vector_store property on the Tools class
-    with patch.object(Tools, 'get_db', mock_get_db), \
-         patch.object(Tools, 'vector_store', new_callable=PropertyMock) as mock_vector_store:
-
+    with (
+        patch.object(Tools, "get_db", mock_get_db),
+        patch.object(Tools, "vector_store", new_callable=PropertyMock) as mock_vector_store,
+    ):
         # Configure the mock property to return our test vector store instance
         mock_vector_store.return_value = test_vector_store
 

@@ -8,8 +8,12 @@ from app.tools.tool import Tools
 # This is the central FastMCP application instance.
 mcp = FastMCP(
     name="Knowledge Graph Kit",
-    instructions="You are an agent managing a knowledge graph. Use the available tools to create, retrieve, update, and connect nodes to fulfill user requests."
+    instructions=(
+        "You are an agent managing a knowledge graph. Use the available tools to create, "
+        "retrieve, update, and connect nodes to fulfill user requests."
+    ),
 )
+
 
 def main():
     """
@@ -17,10 +21,10 @@ def main():
     """
     parser = argparse.ArgumentParser(description="Run the Notes Graph MCP server.")
     parser.add_argument(
-        '--config',
+        "--config",
         type=str,
-        default='config.json',
-        help='Path to the configuration file (optional, uses env vars/defaults otherwise).'
+        default="config.json",
+        help="Path to the configuration file (optional, uses env vars/defaults otherwise).",
     )
     args = parser.parse_args()
 
@@ -28,10 +32,11 @@ def main():
     config = load_config(args.config)
 
     # Initialize tools with config
-    tools = Tools(mcp, config)
+    Tools(mcp, config)
 
     # Run the MCP server
-    mcp.run(transport='http', host=config.HOST, port=config.PORT)
+    mcp.run(transport="http", host=config.HOST, port=config.PORT)
+
 
 if __name__ == "__main__":
     main()
