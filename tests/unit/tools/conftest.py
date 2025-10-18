@@ -1,6 +1,8 @@
-import pytest
-from unittest.mock import MagicMock
 from contextlib import contextmanager
+from unittest.mock import MagicMock
+
+import pytest
+
 
 @pytest.fixture
 def mock_mcp():

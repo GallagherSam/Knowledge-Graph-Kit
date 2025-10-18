@@ -1,6 +1,9 @@
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock, ANY
+
 from app.tools.project import Projects
+
 
 @pytest.fixture
 def mock_crud():

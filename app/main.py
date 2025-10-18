@@ -1,9 +1,9 @@
-from fastmcp import FastMCP
 import argparse
+
+from fastmcp import FastMCP
 
 from app.config import load_config
 from app.tools.tool import Tools
-
 
 # This is the central FastMCP application instance.
 mcp = FastMCP(

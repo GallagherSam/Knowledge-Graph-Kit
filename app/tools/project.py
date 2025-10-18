@@ -1,6 +1,8 @@
-from typing import List, Optional, Dict, Any, Literal
+from typing import Any, Dict, List, Literal, Optional
+
 from app import crud
 from app.models import ProjectProperties
+
 
 class Projects:
     def __init__(self, mcp_instance, provider):

@@ -1,5 +1,5 @@
-import pytest
 from app.models import PersonProperties
+
 
 def test_create_person_integration(tools_instance):
     """

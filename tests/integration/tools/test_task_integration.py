@@ -1,6 +1,7 @@
-import pytest
-from app.models import TaskProperties
 import datetime
+
+from app.models import TaskProperties
+
 
 def test_create_task_integration(tools_instance):
     """

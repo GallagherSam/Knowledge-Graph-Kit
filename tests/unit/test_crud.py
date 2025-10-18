@@ -1,12 +1,13 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 from pydantic import ValidationError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.database import Base
+
 from app import crud
-from app.models import TaskProperties, NoteProperties, PersonProperties, ProjectProperties
-import datetime
+from app.database import Base
+
 
 @pytest.fixture
 def db_session():

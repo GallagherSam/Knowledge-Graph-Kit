@@ -1,13 +1,15 @@
 import pytest
 from pydantic import ValidationError
+
 from app.models import (
+    Edge,
     Node,
-    TaskProperties,
     NoteProperties,
     PersonProperties,
     ProjectProperties,
-    Edge,
+    TaskProperties,
 )
+
 
 def test_node_creation():
     """Test creating a Node with valid data."""

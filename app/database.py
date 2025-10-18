@@ -1,7 +1,7 @@
 from __future__ import annotations
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import Column, String, JSON
+
+from sqlalchemy import JSON, Column, String, create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()
 

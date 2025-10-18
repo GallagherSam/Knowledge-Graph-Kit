@@ -1,9 +1,9 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from app.vector_store import VectorStore
-from app.crud import create_node, get_nodes, delete_node
-from app.models import NoteProperties
+
 
 @pytest.fixture(scope="module")
 def vector_store_manager_instance():

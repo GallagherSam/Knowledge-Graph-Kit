@@ -1,5 +1,5 @@
-import pytest
 from app.models import ProjectProperties
+
 
 def test_create_project_integration(tools_instance):
     """
