@@ -1,8 +1,8 @@
-from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
+
 from app import crud
 from app.models import NoteProperties
-from app.vector_store import VectorStore
+
 
 class Notes:
     def __init__(self, mcp_instance, provider):

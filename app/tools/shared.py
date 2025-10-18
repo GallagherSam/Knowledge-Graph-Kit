@@ -1,7 +1,8 @@
-from typing import List, Optional, Dict, Any
-import json
+from typing import Any, Dict, List, Optional
+
 from app import crud
 from app.models import AnyNode
+
 
 class Shared:
     def __init__(self, mcp_instance, provider):

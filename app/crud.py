@@ -1,19 +1,20 @@
-from typing import List, Dict, Any, Optional, Type
 import datetime
-from sqlalchemy.orm import Session
-from sqlalchemy import String
+from typing import Any, Dict, List, Optional, Type
 
-from app.vector_store import VectorStore
+from sqlalchemy import String
+from sqlalchemy.orm import Session
+
+from app.database import EdgeModel, NodeModel
 from app.models import (
-    Node,
+    AnyNode,
     Edge,
-    TaskProperties,
+    Node,
     NoteProperties,
     PersonProperties,
     ProjectProperties,
-    AnyNode,
+    TaskProperties,
 )
-from app.database import NodeModel, EdgeModel
+from app.vector_store import VectorStore
 
 # A mapping from the string representation of a node type to its Pydantic model class.
 PROPERTIES_MODELS: Dict[AnyNode, Type[TaskProperties | NoteProperties | PersonProperties | ProjectProperties]] = {

@@ -1,9 +1,10 @@
-import chromadb
-from chromadb.utils import embedding_functions
-from chromadb.config import Settings
-from chromadb import QueryResult
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+import chromadb
+from chromadb import QueryResult
+from chromadb.config import Settings
+from chromadb.utils import embedding_functions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

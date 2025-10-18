@@ -1,6 +1,8 @@
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
 from app import crud
 from app.models import PersonProperties
+
 
 class Persons:
     def __init__(self, mcp_instance, provider):

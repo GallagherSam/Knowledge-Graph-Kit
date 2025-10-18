@@ -1,6 +1,6 @@
 
-import pytest
 from app.models import NoteProperties
+
 
 def test_create_note_integration(tools_instance):
     """

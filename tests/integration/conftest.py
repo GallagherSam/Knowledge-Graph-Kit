@@ -1,18 +1,17 @@
 
-import pytest
-import tempfile
 import shutil
-from unittest.mock import MagicMock, patch, PropertyMock
-import chromadb
+import tempfile
 from contextlib import contextmanager
+from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.tools.tool import Tools
-from app.database import Base
-from app.vector_store import VectorStore
 from app.config import AppConfig
+from app.database import Base
+from app.tools.tool import Tools
+from app.vector_store import VectorStore
 
 # Use an in-memory SQLite database for testing
 TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"

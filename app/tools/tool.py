@@ -1,15 +1,14 @@
 from contextlib import contextmanager
-from typing import Optional
 
-from app.database import init_db
-from app.vector_store import VectorStore
 from app.config import AppConfig
-
+from app.database import init_db
 from app.tools.note import Notes
 from app.tools.person import Persons
 from app.tools.project import Projects
 from app.tools.shared import Shared
 from app.tools.task import Tasks
+from app.vector_store import VectorStore
+
 
 class Tools:
     def __init__(self, mcp_instance, config: AppConfig):
