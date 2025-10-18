@@ -79,3 +79,69 @@ def test_delete_node_from_vector_store(vector_store_manager_instance):
 
     # Assert that the collection's delete method was called with the correct ID
     mock_collection.delete.assert_called_once_with(ids=["note_3"])
+
+
+def test_update_node_in_vector_store(vector_store_manager_instance):
+    """
+    Tests that a node's embedding is updated in the vector store.
+    """
+    vector_store, mock_collection = vector_store_manager_instance
+
+    node_data = {
+        "id": "note_4",
+        "type": "Note",
+        "properties": {"title": "Updated Title", "content": "Updated content"},
+    }
+
+    vector_store.update_node(node_data)
+
+    # Assert that update was called with the correct parameters
+    mock_collection.update.assert_called_once()
+    args, kwargs = mock_collection.update.call_args
+    assert kwargs["ids"] == ["note_4"]
+    assert "Type: Note. Title: Updated Title. Content: Updated content" in kwargs["documents"]
+
+
+def test_embedding_text_generation(vector_store_manager_instance):
+    """
+    Tests that embedding text is correctly generated for different node types.
+    """
+    vector_store, _ = vector_store_manager_instance
+
+    # Test Task
+    task_node = {
+        "type": "Task",
+        "properties": {"description": "Do something", "status": "todo"},
+    }
+    text = vector_store._generate_embedding_text(task_node)
+    assert "Type: Task" in text
+    assert "Description: Do something" in text
+
+    # Test Note
+    note_node = {
+        "type": "Note",
+        "properties": {"title": "Title", "content": "Content"},
+    }
+    text = vector_store._generate_embedding_text(note_node)
+    assert "Type: Note" in text
+    assert "Title: Title" in text
+    assert "Content: Content" in text
+
+    # Test Person
+    person_node = {
+        "type": "Person",
+        "properties": {"name": "John Doe"},
+    }
+    text = vector_store._generate_embedding_text(person_node)
+    assert "Type: Person" in text
+    assert "Name: John Doe" in text
+
+    # Test Project
+    project_node = {
+        "type": "Project",
+        "properties": {"name": "My Project", "description": "A cool project"},
+    }
+    text = vector_store._generate_embedding_text(project_node)
+    assert "Type: Project" in text
+    assert "Name: My Project" in text
+    assert "Description: A cool project" in text
