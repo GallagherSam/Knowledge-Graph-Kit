@@ -155,13 +155,6 @@ def test_create_edge_success(db_session, mock_vector_store):
     assert new_edge["target_id"] == node2["id"]
 
 
-def test_delete_edge_success(db_session):
-    """Test successful deletion of an edge."""
-    # This test is not valid anymore as we don't have a direct `delete_edge`
-    # by id in the crud module
-    pass
-
-
 def test_create_edge_node_not_found(db_session):
     """Test creating an edge with a non-existent source or target node."""
     with pytest.raises(ValueError) as exc_info:
@@ -342,3 +335,251 @@ def test_rename_tag_success(db_session, mock_vector_store):
     # Check the call for the first node
     updated_node1 = crud.get_nodes_by_ids(db=db_session, node_ids=[node1["id"]])[0]
     assert sorted(updated_node1["properties"]["tags"]) == ["new_tag", "other"]
+
+
+def test_get_nodes_by_ids(db_session, mock_vector_store):
+    """Test retrieving nodes by a list of IDs."""
+    node1 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 1", "status": "todo", "tags": []},
+    )
+    node2 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Note",
+        properties={"title": "Note 1", "content": "Content", "tags": []},
+    )
+
+    # Test retrieving both
+    nodes = crud.get_nodes_by_ids(db=db_session, node_ids=[node1["id"], node2["id"]])
+    assert len(nodes) == 2
+    assert {n["id"] for n in nodes} == {node1["id"], node2["id"]}
+
+    # Test retrieving one
+    nodes = crud.get_nodes_by_ids(db=db_session, node_ids=[node1["id"]])
+    assert len(nodes) == 1
+
+    # Test with non-existent ID
+    nodes = crud.get_nodes_by_ids(db=db_session, node_ids=["nonexistent"])
+    assert len(nodes) == 0
+
+
+def test_update_node_invalid_merge(db_session, mock_vector_store):
+    """Test that updating a node with invalid merged properties raises ValidationError."""
+    # Create a task with valid status
+    created_node = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Test", "status": "todo", "tags": []},
+    )
+
+    # Try to update with an invalid status (merged properties will be invalid)
+    with pytest.raises(ValidationError):
+        crud.update_node(
+            db=db_session,
+            vector_store=mock_vector_store,
+            node_id=created_node["id"],
+            properties={"status": "invalid_status"},
+        )
+
+
+def test_delete_node_cascades_edges(db_session, mock_vector_store):
+    """Test that deleting a node also deletes its connected edges."""
+    node1 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task", "status": "todo", "tags": []},
+    )
+    node2 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Project",
+        properties={"name": "Project", "description": "Desc", "status": "active", "tags": []},
+    )
+
+    edge = crud.create_edge(
+        db=db_session, source_id=node1["id"], target_id=node2["id"], label="part_of"
+    )
+
+    # Delete node1
+    crud.delete_node(db=db_session, vector_store=mock_vector_store, node_id=node1["id"])
+
+    # Verify edge is also deleted
+    from app.database import EdgeModel
+
+    remaining_edge = db_session.query(EdgeModel).filter(EdgeModel.id == edge["id"]).first()
+    assert remaining_edge is None
+
+
+def test_get_connected_nodes_with_depth(db_session, mock_vector_store):
+    """Test graph traversal with different depths."""
+    # Create chain: node1 -> node2 -> node3
+    node1 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 1", "status": "todo", "tags": []},
+    )
+    node2 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 2", "status": "todo", "tags": []},
+    )
+    node3 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 3", "status": "todo", "tags": []},
+    )
+
+    crud.create_edge(db=db_session, source_id=node1["id"], target_id=node2["id"], label="next")
+    crud.create_edge(db=db_session, source_id=node2["id"], target_id=node3["id"], label="next")
+
+    # Depth 1: should only find node2
+    connected = crud.get_connected_nodes(db=db_session, node_id=node1["id"], depth=1)
+    assert len(connected) == 1
+    assert connected[0]["id"] == node2["id"]
+
+    # Depth 2: should find node2 and node3
+    connected = crud.get_connected_nodes(db=db_session, node_id=node1["id"], depth=2)
+    assert len(connected) == 2
+    assert {n["id"] for n in connected} == {node2["id"], node3["id"]}
+
+    # Depth 0: should find nothing
+    connected = crud.get_connected_nodes(db=db_session, node_id=node1["id"], depth=0)
+    assert len(connected) == 0
+
+
+def test_get_connected_nodes_with_label_filter(db_session, mock_vector_store):
+    """Test that label filtering works in graph traversal."""
+    node1 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task", "status": "todo", "tags": []},
+    )
+    node2 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Project",
+        properties={"name": "Project", "description": "Desc", "status": "active", "tags": []},
+    )
+    node3 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Person",
+        properties={"name": "Person", "tags": [], "metadata": {}},
+    )
+
+    crud.create_edge(db=db_session, source_id=node1["id"], target_id=node2["id"], label="part_of")
+    crud.create_edge(
+        db=db_session, source_id=node1["id"], target_id=node3["id"], label="assigned_to"
+    )
+
+    # Filter by "part_of" label
+    connected = crud.get_connected_nodes(db=db_session, node_id=node1["id"], label="part_of")
+    assert len(connected) == 1
+    assert connected[0]["id"] == node2["id"]
+
+    # Filter by "assigned_to" label
+    connected = crud.get_connected_nodes(db=db_session, node_id=node1["id"], label="assigned_to")
+    assert len(connected) == 1
+    assert connected[0]["id"] == node3["id"]
+
+
+def test_search_nodes_combined_filters(db_session, mock_vector_store):
+    """Test searching with combined query, type, and tags filters."""
+    crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Note",
+        properties={"title": "Apple Note", "content": "About apples", "tags": ["fruit", "food"]},
+    )
+    crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Note",
+        properties={"title": "Banana Note", "content": "About bananas", "tags": ["fruit"]},
+    )
+    crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Buy apples", "status": "todo", "tags": ["food"]},
+    )
+
+    # Search for "apple" in Notes with "fruit" tag
+    results = crud.search_nodes(db=db_session, query="apple", node_type="Note", tags=["fruit"])
+    assert len(results) == 1
+    assert "Apple" in results[0]["properties"]["title"]
+
+    # Search for "apple" with "food" tag (should match both Note and Task)
+    results = crud.search_nodes(db=db_session, query="apple", tags=["food"])
+    assert len(results) == 2
+
+
+def test_rename_tag_with_duplicates(db_session, mock_vector_store):
+    """Test that renaming a tag removes duplicates if new_tag already exists."""
+    crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Note",
+        properties={"title": "Note", "content": "Content", "tags": ["old_tag", "existing_tag"]},
+    )
+
+    # Rename old_tag to existing_tag (should result in single "existing_tag")
+    updated_nodes = crud.rename_tag(db=db_session, old_tag="old_tag", new_tag="existing_tag")
+
+    assert len(updated_nodes) == 1
+    # Should have deduplicated tags
+    assert updated_nodes[0]["properties"]["tags"] == ["existing_tag"]
+
+
+def test_search_nodes_case_insensitive(db_session, mock_vector_store):
+    """Test that search is case-insensitive."""
+    crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Note",
+        properties={"title": "UPPERCASE", "content": "Content", "tags": []},
+    )
+
+    # Search with lowercase should still find it
+    results = crud.search_nodes(db=db_session, query="uppercase")
+    assert len(results) == 1
+
+    results = crud.search_nodes(db=db_session, query="UPPERCASE")
+    assert len(results) == 1
+
+    results = crud.search_nodes(db=db_session, query="UpperCase")
+    assert len(results) == 1
+
+
+def test_get_connected_nodes_prevents_cycles(db_session, mock_vector_store):
+    """Test that BFS doesn't infinitely loop on cycles."""
+    node1 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 1", "status": "todo", "tags": []},
+    )
+    node2 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 2", "status": "todo", "tags": []},
+    )
+
+    # Create a cycle: node1 -> node2 -> node1
+    crud.create_edge(db=db_session, source_id=node1["id"], target_id=node2["id"], label="next")
+    crud.create_edge(db=db_session, source_id=node2["id"], target_id=node1["id"], label="prev")
+
+    # Should not hang and should return only node2
+    connected = crud.get_connected_nodes(db=db_session, node_id=node1["id"], depth=5)
+    assert len(connected) == 1
+    assert connected[0]["id"] == node2["id"]

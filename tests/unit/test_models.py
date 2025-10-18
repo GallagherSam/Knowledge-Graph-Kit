@@ -75,3 +75,29 @@ def test_edge_creation():
     assert edge.source_id == "123"
     assert edge.target_id == "456"
     assert edge.label == "connects_to"
+
+
+def test_note_properties_missing_required():
+    """Test that missing required fields raises ValidationError."""
+    with pytest.raises(ValidationError):
+        NoteProperties(title="Only title")  # Missing content
+
+    with pytest.raises(ValidationError):
+        NoteProperties(content="Only content")  # Missing title
+
+
+def test_task_properties_timestamps():
+    """Test that created_at and modified_at are automatically set."""
+    import datetime
+
+    before = datetime.datetime.now(datetime.UTC)
+    task = TaskProperties(description="Test")
+    after = datetime.datetime.now(datetime.UTC)
+
+    assert task.created_at is not None
+    assert task.modified_at is not None
+    assert before <= task.created_at <= after
+    assert before <= task.modified_at <= after
+    # Timestamps should be very close (within 1 second) on creation
+    time_diff = abs((task.modified_at - task.created_at).total_seconds())
+    assert time_diff < 1.0
