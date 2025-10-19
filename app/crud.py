@@ -206,6 +206,47 @@ def create_edge(db: Session, source_id: str, target_id: str, label: str) -> dict
     }
 
 
+def update_edge(
+    db: Session, source_id: str, target_id: str, old_label: str, new_label: str
+) -> dict[str, Any]:
+    """
+    Updates the label of an edge between two nodes.
+
+    Args:
+        db: The SQLAlchemy database session.
+        source_id: The ID of the source node.
+        target_id: The ID of the target node.
+        old_label: The current label of the edge.
+        new_label: The new label for the edge.
+
+    Returns:
+        The updated edge as a dictionary.
+
+    Raises:
+        ValueError: If the edge with the given source, target, and label is not found.
+    """
+    db_edge = (
+        db.query(EdgeModel)
+        .filter_by(source_id=source_id, target_id=target_id, label=old_label)
+        .first()
+    )
+
+    if not db_edge:
+        raise ValueError(
+            f"Edge from '{source_id}' to '{target_id}' with label '{old_label}' not found."
+        )
+
+    db_edge.label = new_label
+    db.commit()
+    db.refresh(db_edge)
+    return {
+        "id": db_edge.id,
+        "source_id": db_edge.source_id,
+        "target_id": db_edge.target_id,
+        "label": db_edge.label,
+    }
+
+
 def delete_edge(db: Session, edge_id: str) -> bool:
     """
     Deletes an edge from the database.
@@ -223,6 +264,41 @@ def delete_edge(db: Session, edge_id: str) -> bool:
         db.commit()
         return True
     return False
+
+
+def get_node_edges(db: Session, node_id: str, direction: str | None = None) -> list[dict[str, Any]]:
+    """
+    Retrieves all edges connected to a given node.
+
+    Args:
+        db: The SQLAlchemy database session.
+        node_id: The ID of the node.
+        direction: Optional filter - 'outgoing' for edges where node is source,
+                   'incoming' for edges where node is target, or None for both.
+
+    Returns:
+        A list of edge dictionaries with id, source_id, target_id, and label.
+    """
+    query = db.query(EdgeModel)
+
+    if direction == "outgoing":
+        query = query.filter(EdgeModel.source_id == node_id)
+    elif direction == "incoming":
+        query = query.filter(EdgeModel.target_id == node_id)
+    else:
+        # Both directions
+        query = query.filter((EdgeModel.source_id == node_id) | (EdgeModel.target_id == node_id))
+
+    edges = query.all()
+    return [
+        {
+            "id": edge.id,
+            "source_id": edge.source_id,
+            "target_id": edge.target_id,
+            "label": edge.label,
+        }
+        for edge in edges
+    ]
 
 
 def get_connected_nodes(

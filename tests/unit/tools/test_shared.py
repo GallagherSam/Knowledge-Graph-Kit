@@ -20,8 +20,10 @@ def shared_instance(mock_mcp, mock_provider):
 
 def test_shared_init(shared_instance, mock_mcp):
     """Test that the Shared class registers its tools on initialization."""
-    assert mock_mcp.tool.call_count == 8  # Count of tools in Shared class
+    assert mock_mcp.tool.call_count == 10  # Count of tools in Shared class
     mock_mcp.tool.assert_any_call(shared_instance.create_edge)
+    mock_mcp.tool.assert_any_call(shared_instance.edit_edge)
+    mock_mcp.tool.assert_any_call(shared_instance.get_node_edges)
     mock_mcp.tool.assert_any_call(shared_instance.delete_node)
     # Add other tool registration checks as needed
 
@@ -31,6 +33,28 @@ def test_create_edge(shared_instance, mock_crud, mock_db_session):
     shared_instance.create_edge(source_id="1", label="connects", target_id="2")
     mock_crud.create_edge.assert_called_once_with(
         db=mock_db_session, source_id="1", label="connects", target_id="2"
+    )
+
+
+def test_edit_edge(shared_instance, mock_crud, mock_db_session):
+    """Test that edit_edge calls the corresponding crud function."""
+    shared_instance.edit_edge(
+        source_id="1", target_id="2", old_label="connects", new_label="links_to"
+    )
+    mock_crud.update_edge.assert_called_once_with(
+        db=mock_db_session,
+        source_id="1",
+        target_id="2",
+        old_label="connects",
+        new_label="links_to",
+    )
+
+
+def test_get_node_edges(shared_instance, mock_crud, mock_db_session):
+    """Test that get_node_edges calls the corresponding crud function."""
+    shared_instance.get_node_edges(node_id="node_123", direction="outgoing")
+    mock_crud.get_node_edges.assert_called_once_with(
+        db=mock_db_session, node_id="node_123", direction="outgoing"
     )
 
 

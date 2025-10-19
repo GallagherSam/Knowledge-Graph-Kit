@@ -162,6 +162,199 @@ def test_create_edge_node_not_found(db_session):
     assert "not found" in str(exc_info.value)
 
 
+def test_update_edge_success(db_session, mock_vector_store):
+    """Test successfully updating an edge's label."""
+    node1 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Test Task", "status": "todo", "due_date": None, "tags": []},
+    )
+    node2 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Project",
+        properties={
+            "name": "Test Project",
+            "description": "A test project.",
+            "status": "active",
+            "tags": [],
+        },
+    )
+    edge = crud.create_edge(
+        db=db_session, source_id=node1["id"], target_id=node2["id"], label="part_of"
+    )
+
+    updated_edge = crud.update_edge(
+        db=db_session,
+        source_id=node1["id"],
+        target_id=node2["id"],
+        old_label="part_of",
+        new_label="belongs_to",
+    )
+
+    assert updated_edge["id"] == edge["id"]
+    assert updated_edge["label"] == "belongs_to"
+    assert updated_edge["source_id"] == node1["id"]
+    assert updated_edge["target_id"] == node2["id"]
+
+
+def test_update_edge_not_found(db_session, mock_vector_store):
+    """Test updating a non-existent edge raises ValueError."""
+    node1 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Test Task", "status": "todo", "due_date": None, "tags": []},
+    )
+    node2 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Project",
+        properties={
+            "name": "Test Project",
+            "description": "A test project.",
+            "status": "active",
+            "tags": [],
+        },
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        crud.update_edge(
+            db=db_session,
+            source_id=node1["id"],
+            target_id=node2["id"],
+            old_label="nonexistent_label",
+            new_label="new_label",
+        )
+    assert "not found" in str(exc_info.value)
+
+
+def test_get_node_edges_all_directions(db_session, mock_vector_store):
+    """Test getting all edges connected to a node in both directions."""
+    node1 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 1", "status": "todo", "tags": []},
+    )
+    node2 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 2", "status": "todo", "tags": []},
+    )
+    node3 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Project",
+        properties={"name": "Project", "description": "Desc", "status": "active", "tags": []},
+    )
+
+    # Create edges: node1 -> node2, node3 -> node1
+    edge1 = crud.create_edge(
+        db=db_session, source_id=node1["id"], target_id=node2["id"], label="next"
+    )
+    edge2 = crud.create_edge(
+        db=db_session, source_id=node3["id"], target_id=node1["id"], label="contains"
+    )
+
+    # Get all edges for node1 (both incoming and outgoing)
+    edges = crud.get_node_edges(db=db_session, node_id=node1["id"])
+
+    assert len(edges) == 2
+    edge_ids = {edge["id"] for edge in edges}
+    assert edge1["id"] in edge_ids
+    assert edge2["id"] in edge_ids
+
+
+def test_get_node_edges_outgoing_only(db_session, mock_vector_store):
+    """Test getting only outgoing edges from a node."""
+    node1 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 1", "status": "todo", "tags": []},
+    )
+    node2 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 2", "status": "todo", "tags": []},
+    )
+    node3 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Project",
+        properties={"name": "Project", "description": "Desc", "status": "active", "tags": []},
+    )
+
+    # Create edges: node1 -> node2, node3 -> node1
+    edge1 = crud.create_edge(
+        db=db_session, source_id=node1["id"], target_id=node2["id"], label="next"
+    )
+    crud.create_edge(db=db_session, source_id=node3["id"], target_id=node1["id"], label="contains")
+
+    # Get only outgoing edges for node1
+    edges = crud.get_node_edges(db=db_session, node_id=node1["id"], direction="outgoing")
+
+    assert len(edges) == 1
+    assert edges[0]["id"] == edge1["id"]
+    assert edges[0]["source_id"] == node1["id"]
+    assert edges[0]["target_id"] == node2["id"]
+    assert edges[0]["label"] == "next"
+
+
+def test_get_node_edges_incoming_only(db_session, mock_vector_store):
+    """Test getting only incoming edges to a node."""
+    node1 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 1", "status": "todo", "tags": []},
+    )
+    node2 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Task 2", "status": "todo", "tags": []},
+    )
+    node3 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Project",
+        properties={"name": "Project", "description": "Desc", "status": "active", "tags": []},
+    )
+
+    # Create edges: node1 -> node2, node3 -> node1
+    crud.create_edge(db=db_session, source_id=node1["id"], target_id=node2["id"], label="next")
+    edge2 = crud.create_edge(
+        db=db_session, source_id=node3["id"], target_id=node1["id"], label="contains"
+    )
+
+    # Get only incoming edges for node1
+    edges = crud.get_node_edges(db=db_session, node_id=node1["id"], direction="incoming")
+
+    assert len(edges) == 1
+    assert edges[0]["id"] == edge2["id"]
+    assert edges[0]["source_id"] == node3["id"]
+    assert edges[0]["target_id"] == node1["id"]
+    assert edges[0]["label"] == "contains"
+
+
+def test_get_node_edges_no_edges(db_session, mock_vector_store):
+    """Test getting edges for a node with no connections."""
+    node1 = crud.create_node(
+        db=db_session,
+        vector_store=mock_vector_store,
+        node_type="Task",
+        properties={"description": "Isolated task", "status": "todo", "tags": []},
+    )
+
+    edges = crud.get_node_edges(db=db_session, node_id=node1["id"])
+    assert len(edges) == 0
+
+
 def test_get_connected_nodes(db_session, mock_vector_store):
     """Test retrieving connected nodes."""
     node1 = crud.create_node(

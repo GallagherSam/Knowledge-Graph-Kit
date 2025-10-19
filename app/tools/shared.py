@@ -8,6 +8,8 @@ class Shared:
     def __init__(self, mcp_instance, provider):
         self.provider = provider
         mcp_instance.tool(self.create_edge)
+        mcp_instance.tool(self.edit_edge)
+        mcp_instance.tool(self.get_node_edges)
         mcp_instance.tool(self.get_related_nodes)
         mcp_instance.tool(self.search_nodes)
         mcp_instance.tool(self.get_all_tags)
@@ -30,6 +32,43 @@ class Shared:
         """
         with self.provider.get_db() as db:
             return crud.create_edge(db=db, source_id=source_id, target_id=target_id, label=label)
+
+    def edit_edge(self, source_id: str, target_id: str, old_label: str, new_label: str) -> dict:
+        """
+        Updates the label of an existing edge between two nodes.
+
+        Args:
+            source_id: The unique ID of the source node.
+            target_id: The unique ID of the target node.
+            old_label: The current label of the edge to update.
+            new_label: The new label for the edge.
+
+        Returns:
+            A dictionary representing the updated edge.
+        """
+        with self.provider.get_db() as db:
+            return crud.update_edge(
+                db=db,
+                source_id=source_id,
+                target_id=target_id,
+                old_label=old_label,
+                new_label=new_label,
+            )
+
+    def get_node_edges(self, node_id: str, direction: str | None = None) -> list[dict[str, Any]]:
+        """
+        Retrieves all edges connected to a given node.
+
+        Args:
+            node_id: The unique ID of the node.
+            direction: Optional filter - 'outgoing' for edges where the node is the source,
+                      'incoming' for edges where the node is the target, or None for both.
+
+        Returns:
+            A list of edge dictionaries, each containing id, source_id, target_id, and label.
+        """
+        with self.provider.get_db() as db:
+            return crud.get_node_edges(db=db, node_id=node_id, direction=direction)
 
     def get_related_nodes(
         self, node_id: str, label: str | None = None, depth: int = 1
