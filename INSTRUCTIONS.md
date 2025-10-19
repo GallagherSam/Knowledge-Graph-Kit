@@ -132,6 +132,20 @@ Creates a relationship (edge) between two existing nodes.
 *   **`label`** (str): The description of the relationship (e.g., 'part_of', 'mentions').
 *   **`target_id`** (str): The unique ID of the ending node.
 
+#### `edit_edge`
+Updates the label of an existing edge between two nodes.
+
+*   **`source_id`** (str): The unique ID of the source node.
+*   **`target_id`** (str): The unique ID of the target node.
+*   **`old_label`** (str): The current label of the edge to update.
+*   **`new_label`** (str): The new label for the edge.
+
+#### `get_node_edges`
+Retrieves all edges connected to a given node. This allows you to see the edge labels and determine relationships.
+
+*   **`node_id`** (str): The unique ID of the node.
+*   **`direction`** (Optional[str]): Filter by direction - 'outgoing' for edges where the node is the source, 'incoming' for edges where the node is the target, or None (default) for both directions.
+
 #### `get_related_nodes`
 Finds all nodes connected to a given node, up to a specified depth. This is the most efficient way to discover relationships.
 
@@ -190,5 +204,12 @@ Here is a simple example of how to use the tools to manage a project.
 **You:**
 1. `search_nodes(query='Website Redesign', node_type='Project')` to find the project's ID (`project_123`).
 2. `get_related_nodes(node_id='project_123', label='part_of')` to efficiently find all nodes that are part of the project.
+
+**User:** "Change the relationship between the task and project from 'part_of' to 'belongs_to'."
+**You:**
+1. `search_nodes(query='Website Redesign', node_type='Project')` to find the project's ID (`project_123`).
+2. `search_nodes(query='Gather requirements', node_type='Task')` to find the task's ID (`task_456`).
+3. `get_node_edges(node_id='task_456')` to see all edges connected to the task. This returns the edge with label 'part_of' connecting to `project_123`.
+4. `edit_edge(source_id='task_456', target_id='project_123', old_label='part_of', new_label='belongs_to')` to update the edge label.
 
 By following this structure, you can effectively manage the user's knowledge graph.
